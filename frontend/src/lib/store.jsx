@@ -1,21 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { generateId } from './utils.js';
 
-// ─── Hardcoded Login Credentials (password is always "1234") ─────────────────
-const CREDENTIALS = {
-  'admin@gmail.com':   'admin',
-  'teacher@gmail.com': 'teacher',
-  'student@gmail.com': 'student',
-};
-
 // ─── Days of the week ─────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // ─── Initial / Default State ──────────────────────────────────────────────────
 const INITIAL_USERS = [
-  { id: 'admin',   name: 'Admin User',   email: 'admin@nitkkr.ac.in',   role: 'admin' },
-  { id: 'student', name: 'Student User', email: 'student@nitkkr.ac.in', role: 'student' },
-  { id: 't1',      name: 'CS Teacher',   email: 'cs@nitkkr.ac.in',      role: 'teacher', branchId: 'b1' },
+  { id: 'admin-ravi', name: 'Ravi (Admin)', email: 'ravi86198701@gmail.com', role: 'admin' },
 ];
 
 const INITIAL_BRANCHES = [
@@ -31,30 +22,22 @@ const INITIAL_ROOMS = [
 ];
 
 const INITIAL_SLOTS = [
-  { id: 's1', startTime: '07:00', endTime: '08:00', label: '7-8 AM',  period: 1 },
-  { id: 's2', startTime: '08:00', endTime: '09:00', label: '8-9 AM',  period: 2 },
+  { id: 's1', startTime: '07:00', endTime: '08:00', label: '7-8 AM', period: 1 },
+  { id: 's2', startTime: '08:00', endTime: '09:00', label: '8-9 AM', period: 2 },
   { id: 's3', startTime: '09:00', endTime: '10:00', label: '9-10 AM', period: 3 },
 ];
 
 // ─── Per-user localStorage helpers ───────────────────────────────────────────
-// Key is scoped to userId so Admin, Teacher, Student each have their own value
-// even when tested in the same browser / same tab.
 function orientationKey(userId) {
   return `room_view_orientation_${userId || 'guest'}`;
 }
-
 function loadOrientation(userId) {
-  try {
-    return localStorage.getItem(orientationKey(userId)) || 'horizontal';
-  } catch {
-    return 'horizontal';
-  }
+  try { return localStorage.getItem(orientationKey(userId)) || 'horizontal'; }
+  catch { return 'horizontal'; }
 }
-
 function saveOrientation(userId, value) {
-  try {
-    localStorage.setItem(orientationKey(userId), value);
-  } catch { /* Safari private mode — ignore */ }
+  try { localStorage.setItem(orientationKey(userId), value); }
+  catch { /* Safari private mode */ }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,7 +45,6 @@ function toMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
 }
-
 function timesOverlap(s1, e1, s2, e2) {
   return toMinutes(s1) < toMinutes(e2) && toMinutes(s2) < toMinutes(e1);
 }
@@ -71,24 +53,19 @@ function timesOverlap(s1, e1, s2, e2) {
 const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
-  const [currentUser,   setCurrentUser]   = useState(null);
-  const [users,         setUsers]         = useState(INITIAL_USERS);
-  const [branches,      setBranches]      = useState(INITIAL_BRANCHES);
-  const [rooms,         setRooms]         = useState(INITIAL_ROOMS);
-  const [timeSlots,     setTimeSlots]     = useState(INITIAL_SLOTS);
-  const [allocations,   setAllocations]   = useState([]);
-  const [logs,          setLogs]          = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState(INITIAL_USERS);
+  const [branches, setBranches] = useState(INITIAL_BRANCHES);
+  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [timeSlots, setTimeSlots] = useState(INITIAL_SLOTS);
+  const [allocations, setAllocations] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [isLoaded,      setIsLoaded]      = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // viewOrientation is PER-USER — stored under their userId in localStorage.
-  // Starts as 'horizontal' until we know who is logged in.
   const [viewOrientation, setViewOrientation] = useState('horizontal');
-
-  // Expose the same shape all components already use: settings.viewOrientation
   const settings = { viewOrientation };
 
-  // ── When currentUser changes (login / logout), load THEIR saved preference ──
   useEffect(() => {
     const saved = loadOrientation(currentUser?.id);
     setViewOrientation(saved);
@@ -102,14 +79,13 @@ export function StoreProvider({ children }) {
         if (!res.ok) throw new Error('Failed to fetch');
         const parsed = await res.json();
         if (parsed) {
-          setUsers(parsed.users             || INITIAL_USERS);
-          setBranches(parsed.branches       || INITIAL_BRANCHES);
-          setRooms(parsed.rooms             || INITIAL_ROOMS);
-          setTimeSlots(parsed.timeSlots     || INITIAL_SLOTS);
+          setUsers(parsed.users || INITIAL_USERS);
+          setBranches(parsed.branches || INITIAL_BRANCHES);
+          setRooms(parsed.rooms || INITIAL_ROOMS);
+          setTimeSlots(parsed.timeSlots || INITIAL_SLOTS);
           setAllocations(parsed.allocations || []);
-          setLogs(parsed.logs               || []);
+          setLogs(parsed.logs || []);
           setNotifications(parsed.notifications || []);
-          // viewOrientation intentionally NOT read from backend
         }
       } catch (err) {
         console.error('[Store] Failed to load:', err);
@@ -121,7 +97,6 @@ export function StoreProvider({ children }) {
   }, []);
 
   // ── Auto-save SHARED data to backend (debounced 500ms) ────────────────────
-  // viewOrientation is deliberately excluded — it never goes to the backend
   useEffect(() => {
     if (!isLoaded) return;
     const timer = setTimeout(() => {
@@ -130,9 +105,7 @@ export function StoreProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           users, branches, rooms, timeSlots,
-          allocations, logs,
-          settings: {},          // no viewOrientation here
-          notifications,
+          allocations, logs, settings: {}, notifications,
         }),
       }).catch(err => console.error('[Store] Failed to save:', err));
     }, 500);
@@ -153,39 +126,44 @@ export function StoreProvider({ children }) {
     });
   };
 
-  // ─── Login / Logout ───────────────────────────────────────────────────────
-  const login = (email, password) => {
-    if (password !== '1234') return { success: false, error: 'Invalid password.' };
-    const role = CREDENTIALS[email.toLowerCase().trim()];
-    if (!role) return { success: false, error: 'Email not recognised.' };
-    const user = users.find(u => u.role === role) || INITIAL_USERS.find(u => u.role === role);
-    if (!user) return { success: false, error: 'User record not found.' };
-    setCurrentUser(user);
-    return { success: true, role };
+  // ─── Google Login ─────────────────────────────────────────────────────────
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Authentication failed.' };
+      }
+      setCurrentUser(data.user);
+      return { success: true, role: data.role };
+    } catch (err) {
+      console.error('[loginWithGoogle]', err);
+      return { success: false, error: 'Network error. Please try again.' };
+    }
   };
 
   const logout = () => setCurrentUser(null);
 
-  // ─── Settings — viewOrientation saved per-user in localStorage ───────────
+  // ─── Settings ─────────────────────────────────────────────────────────────
   const updateSettings = (partial) => {
     if ('viewOrientation' in partial) {
       const newVal = partial.viewOrientation;
       setViewOrientation(newVal);
-      saveOrientation(currentUser?.id, newVal); // scoped to this user's ID
+      saveOrientation(currentUser?.id, newVal);
     }
-    // Nothing is written to the backend for settings
   };
 
   // ─── Notifications ────────────────────────────────────────────────────────
   const addNotification = (message, type = 'info') => {
     setNotifications(prev => [{
-      id: generateId(),
-      message, type,
-      timestamp: new Date().toISOString(),
-      isRead: false,
+      id: generateId(), message, type,
+      timestamp: new Date().toISOString(), isRead: false,
     }, ...prev]);
   };
-
   const clearNotifications = () => setNotifications([]);
 
   // ─── Branch CRUD ──────────────────────────────────────────────────────────
@@ -197,7 +175,6 @@ export function StoreProvider({ children }) {
     setBranches(prev => [...prev, { id: generateId(), name }]);
     addLog(`Added branch: ${name}`);
   };
-
   const removeBranch = (id) => {
     if (currentUser?.role !== 'admin') return;
     setBranches(prev => prev.filter(b => b.id !== id));
@@ -215,7 +192,6 @@ export function StoreProvider({ children }) {
     setRooms(prev => [...prev, { id: generateId(), name }]);
     addLog(`Added room: ${name}`);
   };
-
   const removeRoom = (id) => {
     if (currentUser?.role !== 'admin') return;
     setRooms(prev => prev.filter(r => r.id !== id));
@@ -227,24 +203,19 @@ export function StoreProvider({ children }) {
   const addTimeSlot = (startTime, endTime, period) => {
     if (currentUser?.role !== 'admin') return { success: false, error: 'Not authorised.' };
     const periodNum = Number(period);
-
     if (toMinutes(startTime) >= toMinutes(endTime))
       return { success: false, error: 'Start time must be before end time.' };
-
     if (timeSlots.some(s => s.period === periodNum))
-      return { success: false, error: `Period ${periodNum} already exists. Choose a different number.` };
-
+      return { success: false, error: `Period ${periodNum} already exists.` };
     const conflict = timeSlots.find(s => timesOverlap(startTime, endTime, s.startTime, s.endTime));
     if (conflict)
-      return { success: false, error: `Time ${startTime}–${endTime} overlaps with Period ${conflict.period} (${conflict.label}).` };
-
+      return { success: false, error: `Time overlaps with Period ${conflict.period} (${conflict.label}).` };
     const label = `${startTime} - ${endTime}`;
     setTimeSlots(prev => [...prev, { id: generateId(), startTime, endTime, label, period: periodNum }]
       .sort((a, b) => a.period - b.period));
     addLog(`Added period ${periodNum}: ${label}`);
     return { success: true };
   };
-
   const removeTimeSlot = (id) => {
     if (currentUser?.role !== 'admin') return;
     setTimeSlots(prev => prev.filter(s => s.id !== id));
@@ -254,11 +225,14 @@ export function StoreProvider({ children }) {
 
   // ─── Teacher CRUD ─────────────────────────────────────────────────────────
   const addTeacher = (name, email, branchId) => {
-    if (currentUser?.role !== 'admin' || !name || !email || !branchId) return;
-    setUsers(prev => [...prev, { id: generateId(), name, email, role: 'teacher', branchId }]);
-    addLog(`Added teacher: ${name}`);
+    if (currentUser?.role !== 'admin' || !email || !branchId) return;
+    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      alert(`A user with email "${email}" already exists.`); return;
+    }
+    const displayName = name || email.split('@')[0];
+    setUsers(prev => [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId }]);
+    addLog(`Added teacher: ${displayName} (${email})`);
   };
-
   const removeTeacher = (id) => {
     if (currentUser?.role !== 'admin') return;
     setUsers(prev => prev.filter(u => u.id !== id));
@@ -268,10 +242,13 @@ export function StoreProvider({ children }) {
   // ─── Admin CRUD ───────────────────────────────────────────────────────────
   const addAdmin = (name, email) => {
     if (currentUser?.role !== 'admin') return;
-    setUsers(prev => [...prev, { id: generateId(), name, email, role: 'admin' }]);
-    addLog(`Added admin: ${name}`);
+    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      alert(`A user with email "${email}" already exists.`); return;
+    }
+    const displayName = name || email.split('@')[0];
+    setUsers(prev => [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' }]);
+    addLog(`Added admin: ${displayName} (${email})`);
   };
-
   const removeAdmin = (id) => {
     if (currentUser?.role !== 'admin') return;
     if (users.filter(u => u.role === 'admin').length <= 1) {
@@ -288,36 +265,33 @@ export function StoreProvider({ children }) {
     if (!branch) return;
     setAllocations(prev => [
       ...prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
-      { id: generateId(), day, slotId, roomId, branchId, subject: branch.name,
-        updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
+      {
+        id: generateId(), day, slotId, roomId, branchId, subject: branch.name,
+        updatedBy: currentUser.id, updatedAt: new Date().toISOString()
+      },
     ]);
     addLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
   };
-
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
     setAllocations(prev => prev.filter(a => a.id !== allocationId));
     addLog(`Removed allocation ${allocationId}`);
   };
-
   const updateAllocationSubject = (allocationId, newSubject) => {
     if (!currentUser) return;
     const allocation = allocations.find(a => a.id === allocationId);
     if (!allocation) return;
-
     if (currentUser.role === 'teacher') {
       if (!currentUser.branchId) { alert('No branch assigned. Contact admin.'); return; }
       if (currentUser.branchId !== allocation.branchId) { alert('You can only edit your own branch slots.'); return; }
     } else if (currentUser.role !== 'admin') {
       return;
     }
-
     setAllocations(prev => prev.map(a =>
       a.id === allocationId
         ? { ...a, subject: newSubject, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
         : a
     ));
-
     const branch = branches.find(b => b.id === allocation.branchId);
     addLog(`Updated subject to: "${newSubject}"`);
     addNotification(`📝 ${branch?.name} - ${allocation.day} updated: Now '${newSubject}'`, 'info');
@@ -338,7 +312,6 @@ export function StoreProvider({ children }) {
       setAllocations([]);
       setLogs([]);
       setNotifications([]);
-      // viewOrientation NOT reset — it's a personal preference
     } catch (err) {
       console.error('[Store] resetData failed:', err);
     }
@@ -347,7 +320,7 @@ export function StoreProvider({ children }) {
   return (
     <StoreContext.Provider value={{
       currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications,
-      login, logout,
+      loginWithGoogle, logout,
       addBranch, removeBranch,
       addRoom, removeRoom,
       addTimeSlot, removeTimeSlot,

@@ -21,6 +21,13 @@ export default function Navbar() {
 
   if (!currentUser) return null;
 
+  // Role badge colors
+  const roleBadgeClass = {
+    admin: 'bg-purple-100 text-purple-700',
+    teacher: 'bg-green-100 text-green-700',
+    student: 'bg-blue-100 text-blue-700',
+  }[currentUser.role] || 'bg-gray-100 text-gray-600';
+
   return (
     <nav className="bg-white border-b border-gray-200 px-4 sm:px-6">
       {/* ── Main bar ── */}
@@ -30,7 +37,7 @@ export default function Navbar() {
           <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 whitespace-nowrap">
             Room Allocation
           </h1>
-          <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] sm:text-xs text-gray-600 font-medium uppercase tracking-wide whitespace-nowrap">
+          <span className={`px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide whitespace-nowrap ${roleBadgeClass}`}>
             {currentUser.role}
           </span>
         </div>
@@ -46,9 +53,24 @@ export default function Navbar() {
             {settings.viewOrientation === 'horizontal' ? '📊 Horizontal' : '📈 Vertical'}
           </button>
 
-          <span className="text-sm text-gray-700 whitespace-nowrap">
-            Hello, <span className="font-semibold">{currentUser.name}</span>
-          </span>
+          {/* Google profile picture + name */}
+          <div className="flex items-center gap-2">
+            {currentUser.picture ? (
+              <img
+                src={currentUser.picture}
+                alt={currentUser.name}
+                className="w-7 h-7 rounded-full border border-gray-200 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
+                {currentUser.name?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
+            <span className="text-sm text-gray-700 whitespace-nowrap">
+              <span className="font-semibold">{currentUser.name}</span>
+            </span>
+          </div>
 
           <button
             onClick={handleLogout}
@@ -61,6 +83,18 @@ export default function Navbar() {
         {/* Right: mobile controls */}
         <div className="flex md:hidden items-center space-x-2">
           <NotificationCenter />
+          {currentUser.picture ? (
+            <img
+              src={currentUser.picture}
+              alt={currentUser.name}
+              className="w-7 h-7 rounded-full border border-gray-200 object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
+              {currentUser.name?.[0]?.toUpperCase() || '?'}
+            </div>
+          )}
           <button
             onClick={() => setMenuOpen(o => !o)}
             className="p-2 rounded text-gray-600 hover:bg-gray-100"

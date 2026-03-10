@@ -10,21 +10,21 @@ export default function AdminPage() {
   const {
     currentUser,
     branches, addBranch, removeBranch,
-    rooms,    addRoom,   removeRoom,
+    rooms, addRoom, removeRoom,
     timeSlots, addTimeSlot, removeTimeSlot,
-    users,    addTeacher, removeTeacher,
+    users, addTeacher, removeTeacher,
     addAdmin, removeAdmin,
     settings, updateSettings,
     resetData,
   } = useStore();
 
-  const [newBranch,      setNewBranch]      = useState('');
-  const [newRoom,        setNewRoom]        = useState('');
+  const [newBranch, setNewBranch] = useState('');
+  const [newRoom, setNewRoom] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState('');
-  const [slotDetails,    setSlotDetails]    = useState({ start: '10:00', end: '11:00', period: 4 });
-  const [slotError,      setSlotError]      = useState('');
-  const [teacherForm,    setTeacherForm]    = useState({ name: '', email: '', branchId: '' });
-  const [adminForm,      setAdminForm]      = useState({ name: '', email: '' });
+  const [slotDetails, setSlotDetails] = useState({ start: '10:00', end: '11:00', period: 4 });
+  const [slotError, setSlotError] = useState('');
+  const [teacherForm, setTeacherForm] = useState({ name: '', email: '', branchId: '' });
+  const [adminForm, setAdminForm] = useState({ name: '', email: '' });
 
   useEffect(() => {
     if (rooms.length > 0 && !selectedRoomId) setSelectedRoomId(rooms[0].id);
@@ -114,7 +114,7 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">Period No.</label>
               <input
                 type="number" min="1"
-                className="flex-1 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
                 placeholder="e.g. 4"
                 value={slotDetails.period}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, period: parseInt(e.target.value) || 1 })); }}
@@ -124,7 +124,7 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">Start Time</label>
               <input
                 type="time"
-                className="flex-1 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
                 value={slotDetails.start}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, start: e.target.value })); }}
               />
@@ -133,7 +133,7 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">End Time</label>
               <input
                 type="time"
-                className="flex-1 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
                 value={slotDetails.end}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, end: e.target.value })); }}
               />

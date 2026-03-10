@@ -1,0 +1,23 @@
+# Secret / credentials files — NEVER commit these
+client_secret*.json
+*.env
+.env.*
+
+# Node dependencies
+node_modules/
+
+# Vite build output
+dist/
+frontend/dist/
+
+# Vite cache
+frontend/.vite/
+frontend/node_modules/.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
