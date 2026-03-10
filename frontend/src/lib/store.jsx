@@ -36,54 +36,83 @@ const INITIAL_SLOTS = [
   { id: 's3', startTime: '09:00', endTime: '10:00', label: '9-10 AM', period: 3 },
 ];
 
-const INITIAL_SETTINGS = { viewOrientation: 'horizontal' };
+// ─── Per-user localStorage helpers ───────────────────────────────────────────
+// Key is scoped to userId so Admin, Teacher, Student each have their own value
+// even when tested in the same browser / same tab.
+function orientationKey(userId) {
+  return `room_view_orientation_${userId || 'guest'}`;
+}
+
+function loadOrientation(userId) {
+  try {
+    return localStorage.getItem(orientationKey(userId)) || 'horizontal';
+  } catch {
+    return 'horizontal';
+  }
+}
+
+function saveOrientation(userId, value) {
+  try {
+    localStorage.setItem(orientationKey(userId), value);
+  } catch { /* Safari private mode — ignore */ }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Convert "HH:MM" string to total minutes for comparison
 function toMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
 }
 
-// Returns true if [start1,end1) overlaps with [start2,end2)
-function timesOverlap(start1, end1, start2, end2) {
-  return toMinutes(start1) < toMinutes(end2) && toMinutes(start2) < toMinutes(end1);
+function timesOverlap(s1, e1, s2, e2) {
+  return toMinutes(s1) < toMinutes(e2) && toMinutes(s2) < toMinutes(e1);
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
-  const [currentUser,    setCurrentUser]    = useState(null);
-  const [users,          setUsers]          = useState(INITIAL_USERS);
-  const [branches,       setBranches]       = useState(INITIAL_BRANCHES);
-  const [rooms,          setRooms]          = useState(INITIAL_ROOMS);
-  const [timeSlots,      setTimeSlots]      = useState(INITIAL_SLOTS);
-  const [allocations,    setAllocations]    = useState([]);
-  const [logs,           setLogs]           = useState([]);
-  const [settings,       setSettings]       = useState(INITIAL_SETTINGS);
-  const [notifications,  setNotifications]  = useState([]);
-  const [isLoaded,       setIsLoaded]       = useState(false);
+  const [currentUser,   setCurrentUser]   = useState(null);
+  const [users,         setUsers]         = useState(INITIAL_USERS);
+  const [branches,      setBranches]      = useState(INITIAL_BRANCHES);
+  const [rooms,         setRooms]         = useState(INITIAL_ROOMS);
+  const [timeSlots,     setTimeSlots]     = useState(INITIAL_SLOTS);
+  const [allocations,   setAllocations]   = useState([]);
+  const [logs,          setLogs]          = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoaded,      setIsLoaded]      = useState(false);
 
-  // ── Load data from backend on mount ──────────────────────────────────────────
+  // viewOrientation is PER-USER — stored under their userId in localStorage.
+  // Starts as 'horizontal' until we know who is logged in.
+  const [viewOrientation, setViewOrientation] = useState('horizontal');
+
+  // Expose the same shape all components already use: settings.viewOrientation
+  const settings = { viewOrientation };
+
+  // ── When currentUser changes (login / logout), load THEIR saved preference ──
+  useEffect(() => {
+    const saved = loadOrientation(currentUser?.id);
+    setViewOrientation(saved);
+  }, [currentUser?.id]);
+
+  // ── Load shared data from backend on mount ────────────────────────────────
   useEffect(() => {
     const loadData = async () => {
       try {
         const res = await fetch('/api/storage');
-        if (!res.ok) throw new Error('Failed to fetch from backend');
+        if (!res.ok) throw new Error('Failed to fetch');
         const parsed = await res.json();
         if (parsed) {
-          setUsers(parsed.users               || INITIAL_USERS);
-          setBranches(parsed.branches         || INITIAL_BRANCHES);
-          setRooms(parsed.rooms               || INITIAL_ROOMS);
-          setTimeSlots(parsed.timeSlots       || INITIAL_SLOTS);
-          setAllocations(parsed.allocations   || []);
-          setLogs(parsed.logs                 || []);
-          setSettings(parsed.settings         || INITIAL_SETTINGS);
+          setUsers(parsed.users             || INITIAL_USERS);
+          setBranches(parsed.branches       || INITIAL_BRANCHES);
+          setRooms(parsed.rooms             || INITIAL_ROOMS);
+          setTimeSlots(parsed.timeSlots     || INITIAL_SLOTS);
+          setAllocations(parsed.allocations || []);
+          setLogs(parsed.logs               || []);
           setNotifications(parsed.notifications || []);
+          // viewOrientation intentionally NOT read from backend
         }
       } catch (err) {
-        console.error('[Store] Failed to load from backend:', err);
+        console.error('[Store] Failed to load:', err);
       } finally {
         setIsLoaded(true);
       }
@@ -91,36 +120,40 @@ export function StoreProvider({ children }) {
     loadData();
   }, []);
 
-  // ── Auto-save data to backend (debounced 500ms) ───────────────────────────
+  // ── Auto-save SHARED data to backend (debounced 500ms) ────────────────────
+  // viewOrientation is deliberately excluded — it never goes to the backend
   useEffect(() => {
     if (!isLoaded) return;
     const timer = setTimeout(() => {
-      const data = { users, branches, rooms, timeSlots, allocations, logs, settings, notifications };
       fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).catch(err => console.error('[Store] Failed to save to backend:', err));
+        body: JSON.stringify({
+          users, branches, rooms, timeSlots,
+          allocations, logs,
+          settings: {},          // no viewOrientation here
+          notifications,
+        }),
+      }).catch(err => console.error('[Store] Failed to save:', err));
     }, 500);
     return () => clearTimeout(timer);
-  }, [users, branches, rooms, timeSlots, allocations, logs, settings, notifications, isLoaded]);
+  }, [users, branches, rooms, timeSlots, allocations, logs, notifications, isLoaded]);
 
-  // ─── Internal helper to add a log entry ──────────────────────────────────
+  // ─── Log helper ───────────────────────────────────────────────────────────
   const addLog = (message) => {
     setLogs(prev => {
       if (!currentUser) return prev;
-      const newLog = {
+      return [{
         id: generateId(),
         timestamp: new Date().toISOString(),
         message,
         userId: currentUser.id,
         userName: currentUser.name,
-      };
-      return [newLog, ...prev];
+      }, ...prev];
     });
   };
 
-  // ─── Login ────────────────────────────────────────────────────────────────
+  // ─── Login / Logout ───────────────────────────────────────────────────────
   const login = (email, password) => {
     if (password !== '1234') return { success: false, error: 'Invalid password.' };
     const role = CREDENTIALS[email.toLowerCase().trim()];
@@ -133,16 +166,24 @@ export function StoreProvider({ children }) {
 
   const logout = () => setCurrentUser(null);
 
+  // ─── Settings — viewOrientation saved per-user in localStorage ───────────
+  const updateSettings = (partial) => {
+    if ('viewOrientation' in partial) {
+      const newVal = partial.viewOrientation;
+      setViewOrientation(newVal);
+      saveOrientation(currentUser?.id, newVal); // scoped to this user's ID
+    }
+    // Nothing is written to the backend for settings
+  };
+
   // ─── Notifications ────────────────────────────────────────────────────────
   const addNotification = (message, type = 'info') => {
-    const notif = {
+    setNotifications(prev => [{
       id: generateId(),
-      message,
-      type,
+      message, type,
       timestamp: new Date().toISOString(),
       isRead: false,
-    };
-    setNotifications(prev => [notif, ...prev]);
+    }, ...prev]);
   };
 
   const clearNotifications = () => setNotifications([]);
@@ -151,11 +192,9 @@ export function StoreProvider({ children }) {
   const addBranch = (name) => {
     if (currentUser?.role !== 'admin') return;
     if (branches.some(b => b.name.toLowerCase() === name.toLowerCase())) {
-      alert(`A branch named "${name}" already exists.`);
-      return;
+      alert(`A branch named "${name}" already exists.`); return;
     }
-    const newBranch = { id: generateId(), name };
-    setBranches(prev => [...prev, newBranch]);
+    setBranches(prev => [...prev, { id: generateId(), name }]);
     addLog(`Added branch: ${name}`);
   };
 
@@ -171,11 +210,9 @@ export function StoreProvider({ children }) {
   const addRoom = (name) => {
     if (currentUser?.role !== 'admin') return;
     if (rooms.some(r => r.name.toLowerCase() === name.toLowerCase())) {
-      alert(`A room named "${name}" already exists.`);
-      return;
+      alert(`A room named "${name}" already exists.`); return;
     }
-    const newRoom = { id: generateId(), name };
-    setRooms(prev => [...prev, newRoom]);
+    setRooms(prev => [...prev, { id: generateId(), name }]);
     addLog(`Added room: ${name}`);
   };
 
@@ -187,45 +224,23 @@ export function StoreProvider({ children }) {
   };
 
   // ─── TimeSlot CRUD ────────────────────────────────────────────────────────
-  /**
-   * Returns { success: true } on success, or { success: false, error: string } on failure.
-   * Three duplicate checks:
-   *   1. Same period number already exists
-   *   2. Exact same start+end time already exists
-   *   3. New slot time overlaps with any existing slot
-   */
   const addTimeSlot = (startTime, endTime, period) => {
     if (currentUser?.role !== 'admin') return { success: false, error: 'Not authorised.' };
-
     const periodNum = Number(period);
 
-    // Validate start < end
-    if (toMinutes(startTime) >= toMinutes(endTime)) {
+    if (toMinutes(startTime) >= toMinutes(endTime))
       return { success: false, error: 'Start time must be before end time.' };
-    }
 
-    // Check 1: duplicate period number
-    if (timeSlots.some(s => s.period === periodNum)) {
-      return {
-        success: false,
-        error: `Period ${periodNum} already exists. Choose a different period number.`,
-      };
-    }
+    if (timeSlots.some(s => s.period === periodNum))
+      return { success: false, error: `Period ${periodNum} already exists. Choose a different number.` };
 
-    // Check 2 & 3: exact duplicate OR overlapping time range
-    const conflict = timeSlots.find(s =>
-      timesOverlap(startTime, endTime, s.startTime, s.endTime)
-    );
-    if (conflict) {
-      return {
-        success: false,
-        error: `Time ${startTime}–${endTime} overlaps with Period ${conflict.period} (${conflict.label}).`,
-      };
-    }
+    const conflict = timeSlots.find(s => timesOverlap(startTime, endTime, s.startTime, s.endTime));
+    if (conflict)
+      return { success: false, error: `Time ${startTime}–${endTime} overlaps with Period ${conflict.period} (${conflict.label}).` };
 
     const label = `${startTime} - ${endTime}`;
-    const newSlot = { id: generateId(), startTime, endTime, label, period: periodNum };
-    setTimeSlots(prev => [...prev, newSlot].sort((a, b) => a.period - b.period));
+    setTimeSlots(prev => [...prev, { id: generateId(), startTime, endTime, label, period: periodNum }]
+      .sort((a, b) => a.period - b.period));
     addLog(`Added period ${periodNum}: ${label}`);
     return { success: true };
   };
@@ -239,10 +254,8 @@ export function StoreProvider({ children }) {
 
   // ─── Teacher CRUD ─────────────────────────────────────────────────────────
   const addTeacher = (name, email, branchId) => {
-    if (currentUser?.role !== 'admin') return;
-    if (!name || !email || !branchId) return;
-    const newTeacher = { id: generateId(), name, email, role: 'teacher', branchId };
-    setUsers(prev => [...prev, newTeacher]);
+    if (currentUser?.role !== 'admin' || !name || !email || !branchId) return;
+    setUsers(prev => [...prev, { id: generateId(), name, email, role: 'teacher', branchId }]);
     addLog(`Added teacher: ${name}`);
   };
 
@@ -255,26 +268,17 @@ export function StoreProvider({ children }) {
   // ─── Admin CRUD ───────────────────────────────────────────────────────────
   const addAdmin = (name, email) => {
     if (currentUser?.role !== 'admin') return;
-    const newAdmin = { id: generateId(), name, email, role: 'admin' };
-    setUsers(prev => [...prev, newAdmin]);
+    setUsers(prev => [...prev, { id: generateId(), name, email, role: 'admin' }]);
     addLog(`Added admin: ${name}`);
   };
 
   const removeAdmin = (id) => {
     if (currentUser?.role !== 'admin') return;
-    const adminCount = users.filter(u => u.role === 'admin').length;
-    if (adminCount <= 1) {
-      alert('Cannot remove the last admin user.');
-      return;
+    if (users.filter(u => u.role === 'admin').length <= 1) {
+      alert('Cannot remove the last admin user.'); return;
     }
     setUsers(prev => prev.filter(u => u.id !== id));
     addLog(`Removed admin ${id}`);
-  };
-
-  // ─── Settings ────────────────────────────────────────────────────────────
-  const updateSettings = (partial) => {
-    setSettings(prev => ({ ...prev, ...partial }));
-    addLog(`Updated settings: ${JSON.stringify(partial)}`);
   };
 
   // ─── Allocation CRUD ──────────────────────────────────────────────────────
@@ -282,24 +286,11 @@ export function StoreProvider({ children }) {
     if (currentUser?.role !== 'admin') return;
     const branch = branches.find(b => b.id === branchId);
     if (!branch) return;
-
-    setAllocations(prev => {
-      const filtered = prev.filter(
-        a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)
-      );
-      const newAlloc = {
-        id: generateId(),
-        day,
-        slotId,
-        roomId,
-        branchId,
-        subject: branch.name,
-        updatedBy: currentUser.id,
-        updatedAt: new Date().toISOString(),
-      };
-      return [...filtered, newAlloc];
-    });
-
+    setAllocations(prev => [
+      ...prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
+      { id: generateId(), day, slotId, roomId, branchId, subject: branch.name,
+        updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
+    ]);
     addLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
   };
 
@@ -311,30 +302,21 @@ export function StoreProvider({ children }) {
 
   const updateAllocationSubject = (allocationId, newSubject) => {
     if (!currentUser) return;
-
     const allocation = allocations.find(a => a.id === allocationId);
     if (!allocation) return;
 
     if (currentUser.role === 'teacher') {
-      if (!currentUser.branchId) {
-        alert('Your account has no branch assigned. Contact the admin.');
-        return;
-      }
-      if (currentUser.branchId !== allocation.branchId) {
-        alert('You can only edit slots assigned to your own branch.');
-        return;
-      }
+      if (!currentUser.branchId) { alert('No branch assigned. Contact admin.'); return; }
+      if (currentUser.branchId !== allocation.branchId) { alert('You can only edit your own branch slots.'); return; }
     } else if (currentUser.role !== 'admin') {
       return;
     }
 
-    setAllocations(prev =>
-      prev.map(a =>
-        a.id === allocationId
-          ? { ...a, subject: newSubject, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
-          : a
-      )
-    );
+    setAllocations(prev => prev.map(a =>
+      a.id === allocationId
+        ? { ...a, subject: newSubject, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
+        : a
+    ));
 
     const branch = branches.find(b => b.id === allocation.branchId);
     addLog(`Updated subject to: "${newSubject}"`);
@@ -355,29 +337,27 @@ export function StoreProvider({ children }) {
       setTimeSlots(INITIAL_SLOTS);
       setAllocations([]);
       setLogs([]);
-      setSettings(INITIAL_SETTINGS);
       setNotifications([]);
+      // viewOrientation NOT reset — it's a personal preference
     } catch (err) {
       console.error('[Store] resetData failed:', err);
     }
   };
 
   return (
-    <StoreContext.Provider
-      value={{
-        currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications,
-        login, logout,
-        addBranch, removeBranch,
-        addRoom, removeRoom,
-        addTimeSlot, removeTimeSlot,
-        addTeacher, removeTeacher,
-        addAdmin, removeAdmin,
-        updateSettings,
-        setAllocation, removeAllocation, updateAllocationSubject,
-        addNotification, clearNotifications,
-        resetData,
-      }}
-    >
+    <StoreContext.Provider value={{
+      currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications,
+      login, logout,
+      addBranch, removeBranch,
+      addRoom, removeRoom,
+      addTimeSlot, removeTimeSlot,
+      addTeacher, removeTeacher,
+      addAdmin, removeAdmin,
+      updateSettings,
+      setAllocation, removeAllocation, updateAllocationSubject,
+      addNotification, clearNotifications,
+      resetData,
+    }}>
       {children}
     </StoreContext.Provider>
   );

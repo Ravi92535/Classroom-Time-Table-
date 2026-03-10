@@ -1,95 +1,26 @@
 {
   "users": [
-    {
-      "id": "admin",
-      "name": "Admin User",
-      "email": "admin@nitkkr.ac.in",
-      "role": "admin"
-    },
-    {
-      "id": "student",
-      "name": "Student User",
-      "email": "student@nitkkr.ac.in",
-      "role": "student"
-    },
-    {
-      "id": "t1",
-      "name": "CS Teacher",
-      "email": "cs@nitkkr.ac.in",
-      "role": "teacher",
-      "branchId": "b1"
-    }
+    { "id": "admin",   "name": "Admin User",   "email": "admin@nitkkr.ac.in",   "role": "admin" },
+    { "id": "student", "name": "Student User", "email": "student@nitkkr.ac.in", "role": "student" },
+    { "id": "t1",      "name": "CS Teacher",   "email": "cs@nitkkr.ac.in",      "role": "teacher", "branchId": "b1" }
   ],
   "branches": [
-    {
-      "id": "b1",
-      "name": "CS"
-    },
-    {
-      "id": "b2",
-      "name": "IT"
-    },
-    {
-      "id": "b3",
-      "name": "AI/ML"
-    },
-    {
-      "id": "b4",
-      "name": "Civil"
-    }
+    { "id": "b1", "name": "CS" },
+    { "id": "b2", "name": "IT" },
+    { "id": "b3", "name": "AI/ML" },
+    { "id": "b4", "name": "Civil" }
   ],
   "rooms": [
-    {
-      "id": "r1",
-      "name": "R101"
-    },
-    {
-      "id": "r2",
-      "name": "R102"
-    }
+    { "id": "r1", "name": "R101" },
+    { "id": "r2", "name": "R102" }
   ],
   "timeSlots": [
-    {
-      "id": "sx51rthx5",
-      "startTime": "08:00",
-      "endTime": "09:00",
-      "label": "08:00 - 09:00",
-      "period": 1
-    }
+    { "id": "s1", "startTime": "07:00", "endTime": "08:00", "label": "7-8 AM",  "period": 1 },
+    { "id": "s2", "startTime": "08:00", "endTime": "09:00", "label": "8-9 AM",  "period": 2 },
+    { "id": "s3", "startTime": "09:00", "endTime": "10:00", "label": "9-10 AM", "period": 3 }
   ],
   "allocations": [],
-  "logs": [
-    {
-      "id": "a8j5d3t16",
-      "timestamp": "2026-03-10T12:15:26.795Z",
-      "message": "Added period 1: 08:00 - 09:00",
-      "userId": "admin",
-      "userName": "Admin User"
-    },
-    {
-      "id": "rfnancmca",
-      "timestamp": "2026-03-10T12:15:05.576Z",
-      "message": "Removed time slot s3",
-      "userId": "admin",
-      "userName": "Admin User"
-    },
-    {
-      "id": "rqtyslmjo",
-      "timestamp": "2026-03-10T12:15:05.233Z",
-      "message": "Removed time slot s2",
-      "userId": "admin",
-      "userName": "Admin User"
-    },
-    {
-      "id": "trmwkcka3",
-      "timestamp": "2026-03-10T12:15:05.037Z",
-      "message": "Removed time slot s1",
-      "userId": "admin",
-      "userName": "Admin User"
-    }
-  ],
-  "settings": {
-    "viewOrientation": "horizontal"
-  },
+  "logs": [],
+  "settings": {},
   "notifications": []
 }

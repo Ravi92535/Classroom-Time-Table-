@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
 
-/**
- * EditSlotModal – lets a teacher (or admin) change the subject label of a slot.
- */
 export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject }) {
   const [subject, setSubject] = useState(initialSubject);
 
-  // Sync when the parent opens with a new subject
   useEffect(() => {
     setSubject(initialSubject);
   }, [initialSubject, isOpen]);
@@ -20,28 +16,29 @@ export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-        <h3 className="text-lg font-bold mb-4 text-gray-900">Edit Session Details</h3>
+    /* Full-screen overlay — slides up from bottom on mobile, centered on desktop */
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+      <div className="bg-white w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl shadow-xl p-5 sm:p-6">
+        <h3 className="text-base sm:text-lg font-bold mb-4 text-gray-900">Edit Session Details</h3>
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          className="w-full p-2 border border-gray-300 rounded mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
           placeholder="Enter subject or activity..."
           autoFocus
         />
-        <div className="flex justify-end space-x-2">
+        <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+            className="flex-1 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-lg text-sm font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 text-sm font-medium"
           >
             Save
           </button>
