@@ -1,0 +1,926 @@
+{
+  "users": [
+    {
+      "id": "admin",
+      "name": "Admin User",
+      "email": "admin@nitkkr.ac.in",
+      "role": "admin"
+    },
+    {
+      "id": "student",
+      "name": "Student User",
+      "email": "student@nitkkr.ac.in",
+      "role": "student"
+    },
+    {
+      "id": "t1",
+      "name": "CS Teacher",
+      "email": "cs@nitkkr.ac.in",
+      "role": "teacher",
+      "branchId": "b1"
+    },
+    {
+      "id": "kguz9zifd",
+      "name": "Ai Teacher",
+      "email": "ai@gmail.com",
+      "role": "teacher",
+      "branchId": "b3"
+    },
+    {
+      "id": "misrfgnp9",
+      "name": "it",
+      "email": "it@gmail.com",
+      "role": "teacher",
+      "branchId": "b2"
+    }
+  ],
+  "branches": [
+    {
+      "id": "b1",
+      "name": "CS"
+    },
+    {
+      "id": "b2",
+      "name": "IT"
+    },
+    {
+      "id": "b3",
+      "name": "AI/ML"
+    },
+    {
+      "id": "b4",
+      "name": "Civil"
+    },
+    {
+      "id": "ls6rlehn1",
+      "name": "ECE"
+    }
+  ],
+  "rooms": [
+    {
+      "id": "r1",
+      "name": "R101"
+    },
+    {
+      "id": "r2",
+      "name": "R102"
+    },
+    {
+      "id": "7gswdl7qd",
+      "name": "R103"
+    }
+  ],
+  "timeSlots": [
+    {
+      "id": "s1",
+      "startTime": "07:00",
+      "endTime": "08:00",
+      "label": "7-8 AM",
+      "period": 1
+    },
+    {
+      "id": "s2",
+      "startTime": "08:00",
+      "endTime": "09:00",
+      "label": "8-9 AM",
+      "period": 2
+    },
+    {
+      "id": "s3",
+      "startTime": "09:00",
+      "endTime": "10:00",
+      "label": "9-10 AM",
+      "period": 3
+    },
+    {
+      "id": "8wmqowaph",
+      "startTime": "10:00",
+      "endTime": "11:00",
+      "label": "10:00 - 11:00",
+      "period": 4
+    }
+  ],
+  "allocations": [
+    {
+      "id": "3at1v9lyg",
+      "day": "Monday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:09.914Z"
+    },
+    {
+      "id": "n3ck0rrux",
+      "day": "Wednesday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:11.210Z"
+    },
+    {
+      "id": "1gc16l565",
+      "day": "Thursday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:12.447Z"
+    },
+    {
+      "id": "xrr8m494d",
+      "day": "Friday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:13.768Z"
+    },
+    {
+      "id": "bafebiziy",
+      "day": "Saturday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b1",
+      "subject": "CS BY Ravindra",
+      "updatedBy": "t1",
+      "updatedAt": "2026-03-10T11:37:36.191Z"
+    },
+    {
+      "id": "haxyhrkxo",
+      "day": "Tuesday",
+      "slotId": "s1",
+      "roomId": "r2",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:16.542Z"
+    },
+    {
+      "id": "bqv2r1ifg",
+      "day": "Monday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:17.667Z"
+    },
+    {
+      "id": "rrfqjjfsx",
+      "day": "Tuesday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:19.077Z"
+    },
+    {
+      "id": "quqr477we",
+      "day": "Wednesday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b1",
+      "subject": "CS by Piyush",
+      "updatedBy": "t1",
+      "updatedAt": "2026-03-10T11:39:50.118Z"
+    },
+    {
+      "id": "7d3tauu0b",
+      "day": "Thursday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:21.290Z"
+    },
+    {
+      "id": "b56hc52rh",
+      "day": "Friday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:22.527Z"
+    },
+    {
+      "id": "jhuvv1lhy",
+      "day": "Saturday",
+      "slotId": "s2",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:23.713Z"
+    },
+    {
+      "id": "pn6u40aec",
+      "day": "Monday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b1",
+      "subject": "CS By Vikram SIr",
+      "updatedBy": "t1",
+      "updatedAt": "2026-03-10T11:47:25.502Z"
+    },
+    {
+      "id": "eeb8he4jd",
+      "day": "Tuesday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:26.172Z"
+    },
+    {
+      "id": "fenqoan4s",
+      "day": "Wednesday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:27.222Z"
+    },
+    {
+      "id": "5pxmxdt40",
+      "day": "Thursday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:28.330Z"
+    },
+    {
+      "id": "3s48wlp2m",
+      "day": "Friday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:29.847Z"
+    },
+    {
+      "id": "bmv7mgu5k",
+      "day": "Saturday",
+      "slotId": "s3",
+      "roomId": "r2",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:35:31.399Z"
+    },
+    {
+      "id": "c7mnthskz",
+      "day": "Monday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:23.037Z"
+    },
+    {
+      "id": "nleh5e8o0",
+      "day": "Monday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:28.084Z"
+    },
+    {
+      "id": "vv94fsepf",
+      "day": "Monday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:33.874Z"
+    },
+    {
+      "id": "70uhif0ey",
+      "day": "Tuesday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:35.135Z"
+    },
+    {
+      "id": "djpodwa6z",
+      "day": "Tuesday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:40.312Z"
+    },
+    {
+      "id": "3y26clf1q",
+      "day": "Tuesday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:41.509Z"
+    },
+    {
+      "id": "xhnd4h98h",
+      "day": "Wednesday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:43.489Z"
+    },
+    {
+      "id": "hv2qe1uqs",
+      "day": "Wednesday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:44.854Z"
+    },
+    {
+      "id": "w5oahr2ch",
+      "day": "Wednesday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS Vijay Sir",
+      "updatedBy": "t1",
+      "updatedAt": "2026-03-10T11:47:34.253Z"
+    },
+    {
+      "id": "mc9kg2mnv",
+      "day": "Thursday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:48.499Z"
+    },
+    {
+      "id": "8ejf5z30m",
+      "day": "Thursday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:50.022Z"
+    },
+    {
+      "id": "7vx6f6gmj",
+      "day": "Thursday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:51.634Z"
+    },
+    {
+      "id": "9goiaeld4",
+      "day": "Friday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:53.203Z"
+    },
+    {
+      "id": "2l2uga64k",
+      "day": "Friday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:54.562Z"
+    },
+    {
+      "id": "pzcq8x4is",
+      "day": "Friday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:56.352Z"
+    },
+    {
+      "id": "iwuukuofz",
+      "day": "Saturday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:36:58.587Z"
+    },
+    {
+      "id": "eh4ayue9w",
+      "day": "Saturday",
+      "slotId": "s2",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:37:00.035Z"
+    },
+    {
+      "id": "15anjrexl",
+      "day": "Saturday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:37:01.609Z"
+    },
+    {
+      "id": "xsoa32vfv",
+      "day": "Monday",
+      "slotId": "8wmqowaph",
+      "roomId": "r1",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:47:51.898Z"
+    },
+    {
+      "id": "87hret1f8",
+      "day": "Tuesday",
+      "slotId": "8wmqowaph",
+      "roomId": "r1",
+      "branchId": "ls6rlehn1",
+      "subject": "ECE",
+      "updatedBy": "admin",
+      "updatedAt": "2026-03-10T11:48:20.893Z"
+    }
+  ],
+  "logs": [
+    {
+      "id": "dmdoh6c85",
+      "timestamp": "2026-03-10T11:50:37.377Z",
+      "message": "Added room: R103",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "8azwbglov",
+      "timestamp": "2026-03-10T11:48:20.893Z",
+      "message": "Allocated ECE → Tuesday, slot 8wmqowaph, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "pp9rixn7m",
+      "timestamp": "2026-03-10T11:48:15.692Z",
+      "message": "Added branch: ECE",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "oej6k3tu7",
+      "timestamp": "2026-03-10T11:47:51.899Z",
+      "message": "Allocated AI/ML → Monday, slot 8wmqowaph, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "wpwzeg7y6",
+      "timestamp": "2026-03-10T11:47:34.253Z",
+      "message": "Updated subject to: \"CS Vijay Sir\"",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "le6jmxu8m",
+      "timestamp": "2026-03-10T11:47:25.503Z",
+      "message": "Updated subject to: \"CS By Vikram SIr\"",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "mqapnu6n3",
+      "timestamp": "2026-03-10T11:40:28.971Z",
+      "message": "Updated settings: {\"viewOrientation\":\"horizontal\"}",
+      "userId": "student",
+      "userName": "Student User"
+    },
+    {
+      "id": "t2v4r1rpa",
+      "timestamp": "2026-03-10T11:39:50.118Z",
+      "message": "Updated subject to: \"CS by Piyush\"",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "l1hrlkap0",
+      "timestamp": "2026-03-10T11:39:13.279Z",
+      "message": "Added period 4: 10:00 - 11:00",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "7ocyon6ms",
+      "timestamp": "2026-03-10T11:39:05.074Z",
+      "message": "Removed time slot inquvn3ug",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "7t7umfgwt",
+      "timestamp": "2026-03-10T11:38:58.804Z",
+      "message": "Added period 4: 09:00 - 10:00",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "q4in9g5pk",
+      "timestamp": "2026-03-10T11:37:52.459Z",
+      "message": "Updated settings: {\"viewOrientation\":\"horizontal\"}",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "ls9kq97qr",
+      "timestamp": "2026-03-10T11:37:51.192Z",
+      "message": "Updated settings: {\"viewOrientation\":\"vertical\"}",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "mnkj3j8z6",
+      "timestamp": "2026-03-10T11:37:36.191Z",
+      "message": "Updated subject to: \"CS BY Ravindra\"",
+      "userId": "t1",
+      "userName": "CS Teacher"
+    },
+    {
+      "id": "85347bcp8",
+      "timestamp": "2026-03-10T11:37:01.610Z",
+      "message": "Allocated Civil → Saturday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "q5q5e1s1k",
+      "timestamp": "2026-03-10T11:37:00.035Z",
+      "message": "Allocated CS → Saturday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "oa6mzat9c",
+      "timestamp": "2026-03-10T11:36:58.587Z",
+      "message": "Allocated IT → Saturday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "mj6y5k347",
+      "timestamp": "2026-03-10T11:36:56.352Z",
+      "message": "Allocated CS → Friday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "gm1y5eyym",
+      "timestamp": "2026-03-10T11:36:54.562Z",
+      "message": "Allocated AI/ML → Friday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "rw315pb1t",
+      "timestamp": "2026-03-10T11:36:53.203Z",
+      "message": "Allocated Civil → Friday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "s47as3yl3",
+      "timestamp": "2026-03-10T11:36:51.634Z",
+      "message": "Allocated CS → Thursday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "63inzws2n",
+      "timestamp": "2026-03-10T11:36:50.022Z",
+      "message": "Allocated AI/ML → Thursday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "4tg36usrg",
+      "timestamp": "2026-03-10T11:36:48.499Z",
+      "message": "Allocated Civil → Thursday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "v41brjmre",
+      "timestamp": "2026-03-10T11:36:46.115Z",
+      "message": "Allocated CS → Wednesday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "3i6s2e86u",
+      "timestamp": "2026-03-10T11:36:44.855Z",
+      "message": "Allocated Civil → Wednesday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "dxav1cr3h",
+      "timestamp": "2026-03-10T11:36:43.490Z",
+      "message": "Allocated IT → Wednesday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "nb4o7f5rj",
+      "timestamp": "2026-03-10T11:36:41.509Z",
+      "message": "Allocated AI/ML → Tuesday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "brz9c4axz",
+      "timestamp": "2026-03-10T11:36:40.312Z",
+      "message": "Allocated Civil → Tuesday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "vnm0725wj",
+      "timestamp": "2026-03-10T11:36:38.483Z",
+      "message": "Removed allocation wcud4dd16",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "6igmelfyg",
+      "timestamp": "2026-03-10T11:36:36.545Z",
+      "message": "Allocated IT → Tuesday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "zgnprbk8h",
+      "timestamp": "2026-03-10T11:36:35.135Z",
+      "message": "Allocated CS → Tuesday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "k4555qevs",
+      "timestamp": "2026-03-10T11:36:33.874Z",
+      "message": "Allocated CS → Monday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "ip6vcgwr1",
+      "timestamp": "2026-03-10T11:36:28.085Z",
+      "message": "Allocated AI/ML → Monday, slot s3, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "wg9ao5y2i",
+      "timestamp": "2026-03-10T11:36:26.533Z",
+      "message": "Removed allocation rl0vxc694",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "41abij4h3",
+      "timestamp": "2026-03-10T11:36:24.462Z",
+      "message": "Allocated CS → Monday, slot s2, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "dbb2smbgh",
+      "timestamp": "2026-03-10T11:36:23.037Z",
+      "message": "Allocated IT → Monday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "o7v4txts1",
+      "timestamp": "2026-03-10T11:36:21.473Z",
+      "message": "Removed allocation ic9mxz88r",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "o2tpcg4ug",
+      "timestamp": "2026-03-10T11:36:19.159Z",
+      "message": "Allocated CS → Monday, slot s1, room r1",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "nmw87c2f7",
+      "timestamp": "2026-03-10T11:36:10.647Z",
+      "message": "Added teacher: it",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "q5kp83r84",
+      "timestamp": "2026-03-10T11:35:54.853Z",
+      "message": "Added teacher: Ai Teacher",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "ykwguikh4",
+      "timestamp": "2026-03-10T11:35:31.400Z",
+      "message": "Allocated IT → Saturday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "u868kyvp0",
+      "timestamp": "2026-03-10T11:35:29.847Z",
+      "message": "Allocated Civil → Friday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "1q0msb2op",
+      "timestamp": "2026-03-10T11:35:28.330Z",
+      "message": "Allocated Civil → Thursday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "3s0xzt6c5",
+      "timestamp": "2026-03-10T11:35:27.222Z",
+      "message": "Allocated Civil → Wednesday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "30zdg823a",
+      "timestamp": "2026-03-10T11:35:26.172Z",
+      "message": "Allocated AI/ML → Tuesday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "3uu5v386l",
+      "timestamp": "2026-03-10T11:35:25.160Z",
+      "message": "Allocated CS → Monday, slot s3, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "8h3ndxfuq",
+      "timestamp": "2026-03-10T11:35:23.713Z",
+      "message": "Allocated Civil → Saturday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "rbamwxetd",
+      "timestamp": "2026-03-10T11:35:22.527Z",
+      "message": "Allocated IT → Friday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "680pt8i1s",
+      "timestamp": "2026-03-10T11:35:21.290Z",
+      "message": "Allocated Civil → Thursday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "yv8mepx3o",
+      "timestamp": "2026-03-10T11:35:20.255Z",
+      "message": "Allocated CS → Wednesday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "3tslcx4m7",
+      "timestamp": "2026-03-10T11:35:19.077Z",
+      "message": "Allocated Civil → Tuesday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "e1oaurcso",
+      "timestamp": "2026-03-10T11:35:17.667Z",
+      "message": "Allocated AI/ML → Monday, slot s2, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "yrm1x118q",
+      "timestamp": "2026-03-10T11:35:16.542Z",
+      "message": "Allocated AI/ML → Tuesday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "j1wo5yndk",
+      "timestamp": "2026-03-10T11:35:15.073Z",
+      "message": "Allocated CS → Saturday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "yyucrqtk2",
+      "timestamp": "2026-03-10T11:35:13.768Z",
+      "message": "Allocated Civil → Friday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "4dmfi82nc",
+      "timestamp": "2026-03-10T11:35:12.447Z",
+      "message": "Allocated IT → Thursday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "jy2zkiee1",
+      "timestamp": "2026-03-10T11:35:11.211Z",
+      "message": "Allocated IT → Wednesday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    },
+    {
+      "id": "uraeqjazo",
+      "timestamp": "2026-03-10T11:35:09.917Z",
+      "message": "Allocated CS → Monday, slot s1, room r2",
+      "userId": "admin",
+      "userName": "Admin User"
+    }
+  ],
+  "settings": {
+    "viewOrientation": "horizontal"
+  },
+  "notifications": [
+    {
+      "id": "z8se8gz8t",
+      "message": "📝 CS - Wednesday updated: Now 'CS Vijay Sir'",
+      "type": "info",
+      "timestamp": "2026-03-10T11:47:34.253Z",
+      "isRead": false
+    },
+    {
+      "id": "w2nvlecqm",
+      "message": "📝 CS - Monday updated: Now 'CS By Vikram SIr'",
+      "type": "info",
+      "timestamp": "2026-03-10T11:47:25.503Z",
+      "isRead": false
+    },
+    {
+      "id": "45jscajzb",
+      "message": "📝 CS - Wednesday updated: Now 'CS by Piyush'",
+      "type": "info",
+      "timestamp": "2026-03-10T11:39:50.118Z",
+      "isRead": false
+    },
+    {
+      "id": "3tooaihfl",
+      "message": "📝 CS - Saturday updated: Now 'CS BY Ravindra'",
+      "type": "info",
+      "timestamp": "2026-03-10T11:37:36.191Z",
+      "isRead": false
+    }
+  ]
+}
