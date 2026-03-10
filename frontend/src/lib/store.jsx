@@ -53,7 +53,12 @@ function timesOverlap(s1, e1, s2, e2) {
 const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('room_system_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [users, setUsers] = useState(INITIAL_USERS);
   const [branches, setBranches] = useState(INITIAL_BRANCHES);
   const [rooms, setRooms] = useState(INITIAL_ROOMS);
@@ -138,7 +143,11 @@ export function StoreProvider({ children }) {
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Authentication failed.' };
       }
-      setCurrentUser(data.user);
+
+      const user = data.user;
+      setCurrentUser(user);
+      localStorage.setItem('room_system_user', JSON.stringify(user));
+
       return { success: true, role: data.role };
     } catch (err) {
       console.error('[loginWithGoogle]', err);
@@ -146,7 +155,10 @@ export function StoreProvider({ children }) {
     }
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('room_system_user');
+  };
 
   // ─── Settings ─────────────────────────────────────────────────────────────
   const updateSettings = (partial) => {

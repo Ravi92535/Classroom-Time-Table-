@@ -4,14 +4,16 @@
       "id": "wynzosdee",
       "name": "Ravindra",
       "email": "ravi08gotan@gmail.com",
-      "role": "admin"
+      "role": "admin",
+      "picture": "https://lh3.googleusercontent.com/a/ACg8ocJDWsDYOo-ah2M_QAOSmBecEImsE-kootK__Xf4erznJQovZYg=s96-c"
     },
     {
       "id": "1okjp9uvy",
       "name": "Ravi Prajapat",
       "email": "ravi08gotan1@gmail.com",
       "role": "teacher",
-      "branchId": "b1"
+      "branchId": "b1",
+      "picture": "https://lh3.googleusercontent.com/a/ACg8ocJACESBmwOBfknyl_bX2NzHX5A2RD2EHaGS3NeP2wxT66fAwA=s96-c"
     },
     {
       "id": "e6abbsyjr",
@@ -62,6 +64,18 @@
     {
       "id": "r2",
       "name": "R102"
+    },
+    {
+      "id": "62rz1f2w6",
+      "name": "E201"
+    },
+    {
+      "id": "d3hb4c4ih",
+      "name": "E101"
+    },
+    {
+      "id": "t5mpyg7wu",
+      "name": "E301"
     }
   ],
   "timeSlots": [
@@ -95,8 +109,8 @@
       "roomId": "r1",
       "branchId": "b1",
       "subject": "CS",
-      "updatedBy": "admin-ravi",
-      "updatedAt": "2026-03-10T19:15:46.265Z"
+      "updatedBy": "1okjp9uvy",
+      "updatedAt": "2026-03-10T19:48:05.805Z"
     },
     {
       "id": "oitsx7kpf",
@@ -447,9 +461,156 @@
       "subject": "IT",
       "updatedBy": "wynzosdee",
       "updatedAt": "2026-03-10T19:18:48.065Z"
+    },
+    {
+      "id": "8rs68qhoh",
+      "day": "Monday",
+      "slotId": "s1",
+      "roomId": "62rz1f2w6",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:19.631Z"
+    },
+    {
+      "id": "thknag78t",
+      "day": "Monday",
+      "slotId": "s2",
+      "roomId": "62rz1f2w6",
+      "branchId": "ieonqto84",
+      "subject": "MNC",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:20.928Z"
+    },
+    {
+      "id": "r1nwvegcc",
+      "day": "Tuesday",
+      "slotId": "s1",
+      "roomId": "62rz1f2w6",
+      "branchId": "ieonqto84",
+      "subject": "MNC",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:22.415Z"
+    },
+    {
+      "id": "nt3ud5ol7",
+      "day": "Wednesday",
+      "slotId": "s2",
+      "roomId": "62rz1f2w6",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:23.869Z"
+    },
+    {
+      "id": "cjst6f0x2",
+      "day": "Thursday",
+      "slotId": "s2",
+      "roomId": "62rz1f2w6",
+      "branchId": "6ca7l0s02",
+      "subject": "ECE",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:25.135Z"
+    },
+    {
+      "id": "o9k0wzf8m",
+      "day": "Friday",
+      "slotId": "s3",
+      "roomId": "62rz1f2w6",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:26.817Z"
+    },
+    {
+      "id": "c25xk49qt",
+      "day": "Saturday",
+      "slotId": "s1",
+      "roomId": "62rz1f2w6",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-10T19:46:29.046Z"
     }
   ],
   "logs": [
+    {
+      "id": "07dlwwngg",
+      "timestamp": "2026-03-10T19:48:05.806Z",
+      "message": "Updated subject to: \"CS\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "9och1n7tu",
+      "timestamp": "2026-03-10T19:46:29.046Z",
+      "message": "Allocated CS → Saturday, slot s1, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "nhqiht6dq",
+      "timestamp": "2026-03-10T19:46:26.817Z",
+      "message": "Allocated IT → Friday, slot s3, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "2blk2g131",
+      "timestamp": "2026-03-10T19:46:25.136Z",
+      "message": "Allocated ECE → Thursday, slot s2, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "slu81pauz",
+      "timestamp": "2026-03-10T19:46:23.869Z",
+      "message": "Allocated Civil → Wednesday, slot s2, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "gh0z8uil4",
+      "timestamp": "2026-03-10T19:46:22.415Z",
+      "message": "Allocated MNC → Tuesday, slot s1, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "jzqqht58p",
+      "timestamp": "2026-03-10T19:46:20.929Z",
+      "message": "Allocated MNC → Monday, slot s2, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "6mxaizqig",
+      "timestamp": "2026-03-10T19:46:19.632Z",
+      "message": "Allocated CS → Monday, slot s1, room 62rz1f2w6",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "u4x9f5kpc",
+      "timestamp": "2026-03-10T19:46:08.663Z",
+      "message": "Added room: E301",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "v632yeubk",
+      "timestamp": "2026-03-10T19:46:03.429Z",
+      "message": "Added room: E101",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "exgz6anwv",
+      "timestamp": "2026-03-10T19:45:57.096Z",
+      "message": "Added room: E201",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
     {
       "id": "uzmb0gp6k",
       "timestamp": "2026-03-10T19:21:22.229Z",
@@ -775,6 +936,13 @@
   ],
   "settings": {},
   "notifications": [
+    {
+      "id": "o4fdmrz3j",
+      "message": "📝 CS - Monday updated: Now 'CS'",
+      "type": "info",
+      "timestamp": "2026-03-10T19:48:05.806Z",
+      "isRead": false
+    },
     {
       "id": "hiihtnxep",
       "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",

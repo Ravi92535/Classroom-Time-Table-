@@ -114,7 +114,8 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">Period No.</label>
               <input
                 type="number" min="1"
-                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
+                style={{ height: '38px' }}
                 placeholder="e.g. 4"
                 value={slotDetails.period}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, period: parseInt(e.target.value) || 1 })); }}
@@ -124,7 +125,8 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">Start Time</label>
               <input
                 type="time"
-                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
+                style={{ height: '38px' }}
                 value={slotDetails.start}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, start: e.target.value })); }}
               />
@@ -133,7 +135,8 @@ export default function AdminPage() {
               <label className="text-xs text-gray-500 shrink-0 w-20">End Time</label>
               <input
                 type="time"
-                className="flex-1 h-9 p-1.5 border rounded-lg text-sm text-black"
+                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
+                style={{ height: '38px' }}
                 value={slotDetails.end}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, end: e.target.value })); }}
               />
