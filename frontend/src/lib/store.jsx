@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { generateId } from './utils.js';
 
 // ─── Hardcoded Login Credentials (password is always "1234") ─────────────────
-// email → role
 const CREDENTIALS = {
   'admin@gmail.com':   'admin',
   'teacher@gmail.com': 'teacher',
@@ -38,6 +37,18 @@ const INITIAL_SLOTS = [
 ];
 
 const INITIAL_SETTINGS = { viewOrientation: 'horizontal' };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Convert "HH:MM" string to total minutes for comparison
+function toMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Returns true if [start1,end1) overlaps with [start2,end2)
+function timesOverlap(start1, end1, start2, end2) {
+  return toMinutes(start1) < toMinutes(end2) && toMinutes(start2) < toMinutes(end1);
+}
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const StoreContext = createContext(undefined);
@@ -96,10 +107,7 @@ export function StoreProvider({ children }) {
 
   // ─── Internal helper to add a log entry ──────────────────────────────────
   const addLog = (message) => {
-    // We use a functional setState so we always work on the latest state,
-    // even if currentUser state hasn't propagated yet.
     setLogs(prev => {
-      // currentUser is captured via closure — safe here
       if (!currentUser) return prev;
       const newLog = {
         id: generateId(),
@@ -117,7 +125,6 @@ export function StoreProvider({ children }) {
     if (password !== '1234') return { success: false, error: 'Invalid password.' };
     const role = CREDENTIALS[email.toLowerCase().trim()];
     if (!role) return { success: false, error: 'Email not recognised.' };
-    // Find corresponding user from state (supports dynamically added teachers/admins)
     const user = users.find(u => u.role === role) || INITIAL_USERS.find(u => u.role === role);
     if (!user) return { success: false, error: 'User record not found.' };
     setCurrentUser(user);
@@ -155,7 +162,6 @@ export function StoreProvider({ children }) {
   const removeBranch = (id) => {
     if (currentUser?.role !== 'admin') return;
     setBranches(prev => prev.filter(b => b.id !== id));
-    // Cascade: remove associated teachers and allocations
     setUsers(prev => prev.filter(u => !(u.role === 'teacher' && u.branchId === id)));
     setAllocations(prev => prev.filter(a => a.branchId !== id));
     addLog(`Removed branch ${id} and its teachers/allocations`);
@@ -176,25 +182,57 @@ export function StoreProvider({ children }) {
   const removeRoom = (id) => {
     if (currentUser?.role !== 'admin') return;
     setRooms(prev => prev.filter(r => r.id !== id));
-    // Cascade: remove all allocations in this room
     setAllocations(prev => prev.filter(a => a.roomId !== id));
     addLog(`Removed room ${id} and its allocations`);
   };
 
   // ─── TimeSlot CRUD ────────────────────────────────────────────────────────
+  /**
+   * Returns { success: true } on success, or { success: false, error: string } on failure.
+   * Three duplicate checks:
+   *   1. Same period number already exists
+   *   2. Exact same start+end time already exists
+   *   3. New slot time overlaps with any existing slot
+   */
   const addTimeSlot = (startTime, endTime, period) => {
-    if (currentUser?.role !== 'admin') return;
-    // Build a readable label: "7:00-8:00 AM" style
+    if (currentUser?.role !== 'admin') return { success: false, error: 'Not authorised.' };
+
+    const periodNum = Number(period);
+
+    // Validate start < end
+    if (toMinutes(startTime) >= toMinutes(endTime)) {
+      return { success: false, error: 'Start time must be before end time.' };
+    }
+
+    // Check 1: duplicate period number
+    if (timeSlots.some(s => s.period === periodNum)) {
+      return {
+        success: false,
+        error: `Period ${periodNum} already exists. Choose a different period number.`,
+      };
+    }
+
+    // Check 2 & 3: exact duplicate OR overlapping time range
+    const conflict = timeSlots.find(s =>
+      timesOverlap(startTime, endTime, s.startTime, s.endTime)
+    );
+    if (conflict) {
+      return {
+        success: false,
+        error: `Time ${startTime}–${endTime} overlaps with Period ${conflict.period} (${conflict.label}).`,
+      };
+    }
+
     const label = `${startTime} - ${endTime}`;
-    const newSlot = { id: generateId(), startTime, endTime, label, period: Number(period) };
+    const newSlot = { id: generateId(), startTime, endTime, label, period: periodNum };
     setTimeSlots(prev => [...prev, newSlot].sort((a, b) => a.period - b.period));
-    addLog(`Added period ${period}: ${label}`);
+    addLog(`Added period ${periodNum}: ${label}`);
+    return { success: true };
   };
 
   const removeTimeSlot = (id) => {
     if (currentUser?.role !== 'admin') return;
     setTimeSlots(prev => prev.filter(s => s.id !== id));
-    // Cascade: remove all allocations using this slot
     setAllocations(prev => prev.filter(a => a.slotId !== id));
     addLog(`Removed time slot ${id}`);
   };
@@ -246,7 +284,6 @@ export function StoreProvider({ children }) {
     if (!branch) return;
 
     setAllocations(prev => {
-      // Remove any existing allocation for the same cell (day + slot + room)
       const filtered = prev.filter(
         a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)
       );
@@ -279,7 +316,6 @@ export function StoreProvider({ children }) {
     if (!allocation) return;
 
     if (currentUser.role === 'teacher') {
-      // Bug-fix: guard against teacher with no branch assigned
       if (!currentUser.branchId) {
         alert('Your account has no branch assigned. Contact the admin.');
         return;
@@ -289,7 +325,6 @@ export function StoreProvider({ children }) {
         return;
       }
     } else if (currentUser.role !== 'admin') {
-      // Students cannot edit
       return;
     }
 
@@ -309,7 +344,6 @@ export function StoreProvider({ children }) {
   // ─── Reset All Data ───────────────────────────────────────────────────────
   const resetData = async () => {
     try {
-      // Send null so the backend resets to its initial data
       await fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
