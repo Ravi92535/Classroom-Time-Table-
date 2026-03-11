@@ -45,6 +45,10 @@ export default function AdminPage() {
     if (result && !result.success) setSlotError(result.error);
   };
 
+  // Shared input class used by all 3 period fields — guarantees identical width behaviour
+  const periodInputCls =
+    'min-w-0 flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white';
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <Navbar />
@@ -107,36 +111,43 @@ export default function AdminPage() {
           </div>
 
           {/* Periods */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+          <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Manage Periods</h3>
 
+            {/* Period No. — use type="text" + inputMode so no spinner arrows appear */}
             <div className="flex items-center gap-2 mb-2">
               <label className="text-xs text-gray-500 shrink-0 w-20">Period No.</label>
               <input
-                type="number" min="1"
-                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
-                style={{ height: '38px' }}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className={periodInputCls}
                 placeholder="e.g. 4"
                 value={slotDetails.period}
-                onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, period: parseInt(e.target.value) || 1 })); }}
+                onChange={e => {
+                  setSlotError('');
+                  setSlotDetails(p => ({ ...p, period: parseInt(e.target.value) || 1 }));
+                }}
               />
             </div>
+
+            {/* Start Time */}
             <div className="flex items-center gap-2 mb-2">
               <label className="text-xs text-gray-500 shrink-0 w-20">Start Time</label>
               <input
                 type="time"
-                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
-                style={{ height: '38px' }}
+                className={periodInputCls}
                 value={slotDetails.start}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, start: e.target.value })); }}
               />
             </div>
+
+            {/* End Time */}
             <div className="flex items-center gap-2 mb-2">
               <label className="text-xs text-gray-500 shrink-0 w-20">End Time</label>
               <input
                 type="time"
-                className="flex-1 h-[38px] px-3 border rounded-lg text-sm text-black"
-                style={{ height: '38px' }}
+                className={periodInputCls}
                 value={slotDetails.end}
                 onChange={e => { setSlotError(''); setSlotDetails(p => ({ ...p, end: e.target.value })); }}
               />
