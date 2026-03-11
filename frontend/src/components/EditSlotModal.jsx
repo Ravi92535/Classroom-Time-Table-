@@ -1,34 +1,54 @@
 import { useState, useEffect } from 'react';
 
-export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject }) {
-  const [subject, setSubject] = useState(initialSubject);
+export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject, initialBranchLabel }) {
+  const [subject,     setSubject]     = useState(initialSubject     || '');
+  const [branchLabel, setBranchLabel] = useState(initialBranchLabel || '');
 
   useEffect(() => {
-    setSubject(initialSubject);
-  }, [initialSubject, isOpen]);
+    setSubject(initialSubject       || '');
+    setBranchLabel(initialBranchLabel || '');
+  }, [initialSubject, initialBranchLabel, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
     if (!subject.trim()) return;
-    onSave(subject.trim());
+    onSave(subject.trim(), branchLabel.trim());
     onClose();
   };
 
   return (
-    /* Full-screen overlay — slides up from bottom on mobile, centered on desktop */
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl shadow-xl p-5 sm:p-6">
         <h3 className="text-base sm:text-lg font-bold mb-4 text-gray-900">Edit Session Details</h3>
+
+        {/* Subject */}
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          Subject / Title
+        </label>
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
-          placeholder="Enter subject or activity..."
+          className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="e.g. CS By Mukesh Sir"
           autoFocus
         />
+
+        {/* Branch label — the text shown in parentheses */}
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          Branch Label <span className="normal-case font-normal text-gray-400">(shown in parentheses)</span>
+        </label>
+        <input
+          type="text"
+          value={branchLabel}
+          onChange={(e) => setBranchLabel(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          className="w-full p-3 border border-gray-300 rounded-lg mb-5 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="e.g. CS"
+        />
+
         <div className="flex gap-3">
           <button
             onClick={onClose}

@@ -143,11 +143,9 @@ export function StoreProvider({ children }) {
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Authentication failed.' };
       }
-
       const user = data.user;
       setCurrentUser(user);
       localStorage.setItem('room_system_user', JSON.stringify(user));
-
       return { success: true, role: data.role };
     } catch (err) {
       console.error('[loginWithGoogle]', err);
@@ -284,12 +282,15 @@ export function StoreProvider({ children }) {
     ]);
     addLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
   };
+
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
     setAllocations(prev => prev.filter(a => a.id !== allocationId));
     addLog(`Removed allocation ${allocationId}`);
   };
-  const updateAllocationSubject = (allocationId, newSubject) => {
+
+  // ✅ Fixed: now accepts newBranchLabel as 3rd argument and saves it on the allocation
+  const updateAllocationSubject = (allocationId, newSubject, newBranchLabel) => {
     if (!currentUser) return;
     const allocation = allocations.find(a => a.id === allocationId);
     if (!allocation) return;
@@ -301,12 +302,19 @@ export function StoreProvider({ children }) {
     }
     setAllocations(prev => prev.map(a =>
       a.id === allocationId
-        ? { ...a, subject: newSubject, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
+        ? {
+            ...a,
+            subject: newSubject,
+            // Save the custom branch label. undefined means "not provided" → keep old value.
+            branchLabel: newBranchLabel !== undefined ? newBranchLabel : a.branchLabel,
+            updatedBy: currentUser.id,
+            updatedAt: new Date().toISOString(),
+          }
         : a
     ));
     const branch = branches.find(b => b.id === allocation.branchId);
-    addLog(`Updated subject to: "${newSubject}"`);
-    addNotification(`📝 ${branch?.name} - ${allocation.day} updated: Now '${newSubject}'`, 'info');
+    addLog(`Updated slot: "${newSubject}" (${newBranchLabel ?? branch?.name})`);
+    addNotification(`📝 ${branch?.name} - ${allocation.day} updated: '${newSubject}'`, 'info');
   };
 
   // ─── Reset All Data ───────────────────────────────────────────────────────

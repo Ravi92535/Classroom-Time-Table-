@@ -208,9 +208,10 @@
       "slotId": "s2",
       "roomId": "r1",
       "branchId": "b1",
-      "subject": "CS By Mukesh Sir",
+      "subject": "CS",
       "updatedBy": "1okjp9uvy",
-      "updatedAt": "2026-03-10T19:19:23.773Z"
+      "updatedAt": "2026-03-11T05:11:17.764Z",
+      "branchLabel": "Ml"
     },
     {
       "id": "7pc2vrb70",
@@ -263,16 +264,6 @@
       "updatedAt": "2026-03-10T19:16:09.614Z"
     },
     {
-      "id": "kvqb5yzg3",
-      "day": "Saturday",
-      "slotId": "s3",
-      "roomId": "r1",
-      "branchId": "ieonqto84",
-      "subject": "MNC",
-      "updatedBy": "admin-ravi",
-      "updatedAt": "2026-03-10T19:16:10.978Z"
-    },
-    {
       "id": "j02dp2lyy",
       "day": "Monday",
       "slotId": "s1",
@@ -308,9 +299,9 @@
       "slotId": "s2",
       "roomId": "r2",
       "branchId": "b1",
-      "subject": "CS",
-      "updatedBy": "admin-ravi",
-      "updatedAt": "2026-03-10T19:16:22.949Z"
+      "subject": "Math",
+      "updatedBy": "1okjp9uvy",
+      "updatedAt": "2026-03-11T05:06:52.630Z"
     },
     {
       "id": "f93oi9xu3",
@@ -453,16 +444,6 @@
       "updatedAt": "2026-03-10T19:16:40.504Z"
     },
     {
-      "id": "kn8j8e8sq",
-      "day": "Saturday",
-      "slotId": "s1",
-      "roomId": "r1",
-      "branchId": "b2",
-      "subject": "IT",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:18:48.065Z"
-    },
-    {
       "id": "8rs68qhoh",
       "day": "Monday",
       "slotId": "s1",
@@ -531,9 +512,120 @@
       "subject": "CS",
       "updatedBy": "wynzosdee",
       "updatedAt": "2026-03-10T19:46:29.046Z"
+    },
+    {
+      "id": "wo670aj3j",
+      "day": "Saturday",
+      "slotId": "s1",
+      "roomId": "r1",
+      "branchId": "b4",
+      "subject": "Civil",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T04:49:41.162Z"
+    },
+    {
+      "id": "51bxsk1wb",
+      "day": "Saturday",
+      "slotId": "s3",
+      "roomId": "r1",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:11:45.675Z"
     }
   ],
   "logs": [
+    {
+      "id": "5e7hl1vqa",
+      "timestamp": "2026-03-11T05:11:45.675Z",
+      "message": "Allocated CS → Saturday, slot s3, room r1",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "bimtgzg9t",
+      "timestamp": "2026-03-11T05:11:42.895Z",
+      "message": "Removed allocation kvqb5yzg3",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "bmp34adeb",
+      "timestamp": "2026-03-11T05:11:17.764Z",
+      "message": "Updated slot: \"CS\" (Ml)",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "ee82qb0ry",
+      "timestamp": "2026-03-11T05:06:52.631Z",
+      "message": "Updated subject to: \"Math\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "8cd87b09z",
+      "timestamp": "2026-03-11T05:05:52.730Z",
+      "message": "Updated subject to: \"CS\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "06ou8bulp",
+      "timestamp": "2026-03-11T05:05:25.162Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "djw5umqyr",
+      "timestamp": "2026-03-11T05:05:19.900Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "reec5v90i",
+      "timestamp": "2026-03-11T05:04:34.692Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "hhj06cm0i",
+      "timestamp": "2026-03-11T05:04:22.079Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "ul0d3ulv3",
+      "timestamp": "2026-03-11T05:04:10.809Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "q2dk4xjps",
+      "timestamp": "2026-03-11T04:50:01.435Z",
+      "message": "Updated subject to: \"CS By Mukesh Sir\"",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "fmopjzdgq",
+      "timestamp": "2026-03-11T04:49:41.162Z",
+      "message": "Allocated Civil → Saturday, slot s1, room r1",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "napncmqel",
+      "timestamp": "2026-03-11T04:49:37.757Z",
+      "message": "Removed allocation kn8j8e8sq",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
     {
       "id": "07dlwwngg",
       "timestamp": "2026-03-10T19:48:05.806Z",
@@ -936,6 +1028,69 @@
   ],
   "settings": {},
   "notifications": [
+    {
+      "id": "5gn30370y",
+      "message": "📝 CS - Thursday updated: 'CS'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:11:17.764Z",
+      "isRead": false
+    },
+    {
+      "id": "xfcke430r",
+      "message": "📝 CS - Tuesday updated: Now 'Math'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:06:52.631Z",
+      "isRead": false
+    },
+    {
+      "id": "idzs6oyet",
+      "message": "📝 CS - Thursday updated: Now 'CS'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:05:52.730Z",
+      "isRead": false
+    },
+    {
+      "id": "h74ckkqgd",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:05:25.162Z",
+      "isRead": false
+    },
+    {
+      "id": "hi03eflwu",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:05:19.900Z",
+      "isRead": false
+    },
+    {
+      "id": "yndwno4c7",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:04:34.692Z",
+      "isRead": false
+    },
+    {
+      "id": "egobrao3e",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:04:22.079Z",
+      "isRead": false
+    },
+    {
+      "id": "37y3kz4m9",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:04:10.809Z",
+      "isRead": false
+    },
+    {
+      "id": "a9qhfh83h",
+      "message": "📝 CS - Thursday updated: Now 'CS By Mukesh Sir'",
+      "type": "info",
+      "timestamp": "2026-03-11T04:50:01.435Z",
+      "isRead": false
+    },
     {
       "id": "o4fdmrz3j",
       "message": "📝 CS - Monday updated: Now 'CS'",

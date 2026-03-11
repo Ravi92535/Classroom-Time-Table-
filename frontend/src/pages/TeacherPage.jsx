@@ -37,8 +37,19 @@ export default function TeacherPage() {
     );
   }
 
-  const handleEditSlot   = (id, subject) => { setSelectedAllocation({ id, subject }); setIsModalOpen(true); };
-  const handleSaveSlot   = (newSubject)  => { if (selectedAllocation) updateAllocationSubject(selectedAllocation.id, newSubject); };
+  // ✅ Receive all three: id, subject, branchLabel
+  const handleEditSlot = (id, subject, branchLabel) => {
+    setSelectedAllocation({ id, subject, branchLabel });
+    setIsModalOpen(true);
+  };
+
+  // ✅ Pass both newSubject and newBranchLabel to the store
+  const handleSaveSlot = (newSubject, newBranchLabel) => {
+    if (selectedAllocation) {
+      updateAllocationSubject(selectedAllocation.id, newSubject, newBranchLabel);
+    }
+  };
+
   const branchName = branches.find(b => b.id === currentUser.branchId)?.name || 'your assigned';
 
   return (
@@ -49,7 +60,7 @@ export default function TeacherPage() {
         <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded">
           <p className="text-sm text-blue-700">
             You are logged in as a <strong>Teacher</strong> for the <strong>{branchName}</strong> branch.
-            Tap slots assigned to your branch to edit the subject.
+            Tap slots assigned to your branch to edit.
           </p>
         </div>
 
@@ -74,11 +85,13 @@ export default function TeacherPage() {
 
       </main>
 
+      {/* ✅ initialBranchLabel is now passed correctly */}
       <EditSlotModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveSlot}
         initialSubject={selectedAllocation?.subject || ''}
+        initialBranchLabel={selectedAllocation?.branchLabel || ''}
       />
     </div>
   );
