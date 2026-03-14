@@ -86,3 +86,4 @@ The frontend runs on **http://localhost:5173**
 4. **Duplicate rooms/branches** – prevented with a case-insensitive name check.
 5. **Reset data** – properly resets to initial state both in-memory and on disk.
 6. **Enter key** – pressing Enter in input fields now triggers the add action.
+# Classroom-Time-Table-
