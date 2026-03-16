@@ -1,0 +1,9 @@
+
+
+backend
+cd /Users/ravi/Desktop/roomsystem/backend && node server.js
+
+
+frontend
+cd /Users/ravi/Desktop/roomsystem/frontend && npm run dev -- --port 5173
+

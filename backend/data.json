@@ -66,16 +66,12 @@
       "name": "R102"
     },
     {
-      "id": "62rz1f2w6",
+      "id": "y3b648e1q",
       "name": "E201"
     },
     {
-      "id": "d3hb4c4ih",
-      "name": "E101"
-    },
-    {
-      "id": "t5mpyg7wu",
-      "name": "E301"
+      "id": "93qontyc3",
+      "name": "MCA304"
     }
   ],
   "timeSlots": [
@@ -108,9 +104,10 @@
       "slotId": "s1",
       "roomId": "r1",
       "branchId": "b1",
-      "subject": "CS",
+      "subject": "DBMS",
       "updatedBy": "1okjp9uvy",
-      "updatedAt": "2026-03-10T19:48:05.805Z"
+      "updatedAt": "2026-03-11T05:35:36.556Z",
+      "branchLabel": "BY Rajiv sir"
     },
     {
       "id": "oitsx7kpf",
@@ -210,7 +207,7 @@
       "branchId": "b1",
       "subject": "CS",
       "updatedBy": "1okjp9uvy",
-      "updatedAt": "2026-03-11T05:11:17.764Z",
+      "updatedAt": "2026-03-16T09:01:57.034Z",
       "branchLabel": "Ml"
     },
     {
@@ -444,76 +441,6 @@
       "updatedAt": "2026-03-10T19:16:40.504Z"
     },
     {
-      "id": "8rs68qhoh",
-      "day": "Monday",
-      "slotId": "s1",
-      "roomId": "62rz1f2w6",
-      "branchId": "b1",
-      "subject": "CS",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:19.631Z"
-    },
-    {
-      "id": "thknag78t",
-      "day": "Monday",
-      "slotId": "s2",
-      "roomId": "62rz1f2w6",
-      "branchId": "ieonqto84",
-      "subject": "MNC",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:20.928Z"
-    },
-    {
-      "id": "r1nwvegcc",
-      "day": "Tuesday",
-      "slotId": "s1",
-      "roomId": "62rz1f2w6",
-      "branchId": "ieonqto84",
-      "subject": "MNC",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:22.415Z"
-    },
-    {
-      "id": "nt3ud5ol7",
-      "day": "Wednesday",
-      "slotId": "s2",
-      "roomId": "62rz1f2w6",
-      "branchId": "b4",
-      "subject": "Civil",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:23.869Z"
-    },
-    {
-      "id": "cjst6f0x2",
-      "day": "Thursday",
-      "slotId": "s2",
-      "roomId": "62rz1f2w6",
-      "branchId": "6ca7l0s02",
-      "subject": "ECE",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:25.135Z"
-    },
-    {
-      "id": "o9k0wzf8m",
-      "day": "Friday",
-      "slotId": "s3",
-      "roomId": "62rz1f2w6",
-      "branchId": "b2",
-      "subject": "IT",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:26.817Z"
-    },
-    {
-      "id": "c25xk49qt",
-      "day": "Saturday",
-      "slotId": "s1",
-      "roomId": "62rz1f2w6",
-      "branchId": "b1",
-      "subject": "CS",
-      "updatedBy": "wynzosdee",
-      "updatedAt": "2026-03-10T19:46:29.046Z"
-    },
-    {
       "id": "wo670aj3j",
       "day": "Saturday",
       "slotId": "s1",
@@ -532,9 +459,294 @@
       "subject": "CS",
       "updatedBy": "wynzosdee",
       "updatedAt": "2026-03-11T05:11:45.675Z"
+    },
+    {
+      "id": "yn4lbe0ev",
+      "day": "Monday",
+      "slotId": "s1",
+      "roomId": "y3b648e1q",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:32.926Z"
+    },
+    {
+      "id": "4tyzob2fi",
+      "day": "Monday",
+      "slotId": "s2",
+      "roomId": "y3b648e1q",
+      "branchId": "ieonqto84",
+      "subject": "MNC",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:35.102Z"
+    },
+    {
+      "id": "8rjmexctc",
+      "day": "Monday",
+      "slotId": "s3",
+      "roomId": "y3b648e1q",
+      "branchId": "6ca7l0s02",
+      "subject": "ECE",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:36.511Z"
+    },
+    {
+      "id": "o8qmngcaw",
+      "day": "Tuesday",
+      "slotId": "s1",
+      "roomId": "y3b648e1q",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:46.570Z"
+    },
+    {
+      "id": "470zx2buy",
+      "day": "Tuesday",
+      "slotId": "s2",
+      "roomId": "y3b648e1q",
+      "branchId": "ieonqto84",
+      "subject": "MNC",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:47.752Z"
+    },
+    {
+      "id": "op2wqs881",
+      "day": "Tuesday",
+      "slotId": "s3",
+      "roomId": "y3b648e1q",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:49.006Z"
+    },
+    {
+      "id": "i9g3zmt5g",
+      "day": "Wednesday",
+      "slotId": "s2",
+      "roomId": "y3b648e1q",
+      "branchId": "6ca7l0s02",
+      "subject": "ECE",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:50.303Z"
+    },
+    {
+      "id": "5xe717wqy",
+      "day": "Wednesday",
+      "slotId": "s1",
+      "roomId": "y3b648e1q",
+      "branchId": "b1",
+      "subject": "CS",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:51.473Z"
+    },
+    {
+      "id": "tlb5tqdnb",
+      "day": "Wednesday",
+      "slotId": "s3",
+      "roomId": "y3b648e1q",
+      "branchId": "6ca7l0s02",
+      "subject": "ECE",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T05:34:52.756Z"
+    },
+    {
+      "id": "jtf75ozpe",
+      "day": "Monday",
+      "slotId": "s1",
+      "roomId": "93qontyc3",
+      "branchId": "b1",
+      "subject": "MATHS₹",
+      "updatedBy": "1okjp9uvy",
+      "updatedAt": "2026-03-11T10:35:30.324Z",
+      "branchLabel": "BY RAJIV SIR"
+    },
+    {
+      "id": "w786uxdaq",
+      "day": "Monday",
+      "slotId": "s2",
+      "roomId": "93qontyc3",
+      "branchId": "b3",
+      "subject": "AI/ML",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T10:33:58.512Z"
+    },
+    {
+      "id": "uv5nul1sy",
+      "day": "Monday",
+      "slotId": "s3",
+      "roomId": "93qontyc3",
+      "branchId": "6ca7l0s02",
+      "subject": "ECE",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T10:34:01.414Z"
+    },
+    {
+      "id": "myq0bhyew",
+      "day": "Tuesday",
+      "slotId": "s3",
+      "roomId": "93qontyc3",
+      "branchId": "b2",
+      "subject": "IT",
+      "updatedBy": "wynzosdee",
+      "updatedAt": "2026-03-11T10:36:56.095Z"
     }
   ],
   "logs": [
+    {
+      "id": "vtrjrkkfg",
+      "timestamp": "2026-03-16T09:01:57.037Z",
+      "message": "Updated slot: \"CS\" (Ml)",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "mc16vi7lt",
+      "timestamp": "2026-03-11T10:36:56.096Z",
+      "message": "Allocated IT → Tuesday, slot s3, room 93qontyc3",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "3d2oub08h",
+      "timestamp": "2026-03-11T10:35:30.324Z",
+      "message": "Updated slot: \"MATHS₹\" (BY RAJIV SIR)",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "ev9nh4lnq",
+      "timestamp": "2026-03-11T10:34:53.499Z",
+      "message": "Updated slot: \"MATHS₹\" (BY RAJIV SIR)",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "5xmq4cguk",
+      "timestamp": "2026-03-11T10:34:01.414Z",
+      "message": "Allocated ECE → Monday, slot s3, room 93qontyc3",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "6tvwxlk7z",
+      "timestamp": "2026-03-11T10:33:58.512Z",
+      "message": "Allocated AI/ML → Monday, slot s2, room 93qontyc3",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "vaw4qkd7c",
+      "timestamp": "2026-03-11T10:33:55.634Z",
+      "message": "Allocated CS → Monday, slot s1, room 93qontyc3",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "5wf3mz7yt",
+      "timestamp": "2026-03-11T10:33:27.971Z",
+      "message": "Added room: MCA304",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "7goxiy70y",
+      "timestamp": "2026-03-11T05:35:36.556Z",
+      "message": "Updated slot: \"DBMS\" (BY Rajiv sir)",
+      "userId": "1okjp9uvy",
+      "userName": "Ravi Prajapat"
+    },
+    {
+      "id": "5wd660lb6",
+      "timestamp": "2026-03-11T05:34:52.757Z",
+      "message": "Allocated ECE → Wednesday, slot s3, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "4b8hojatt",
+      "timestamp": "2026-03-11T05:34:51.473Z",
+      "message": "Allocated CS → Wednesday, slot s1, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "2stp04gb4",
+      "timestamp": "2026-03-11T05:34:50.303Z",
+      "message": "Allocated ECE → Wednesday, slot s2, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "mens9inoe",
+      "timestamp": "2026-03-11T05:34:49.006Z",
+      "message": "Allocated CS → Tuesday, slot s3, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "8ngm22j1e",
+      "timestamp": "2026-03-11T05:34:47.752Z",
+      "message": "Allocated MNC → Tuesday, slot s2, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "vodg6mvhd",
+      "timestamp": "2026-03-11T05:34:46.570Z",
+      "message": "Allocated IT → Tuesday, slot s1, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "plp8ov82a",
+      "timestamp": "2026-03-11T05:34:36.511Z",
+      "message": "Allocated ECE → Monday, slot s3, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "uhcn7vy6n",
+      "timestamp": "2026-03-11T05:34:35.103Z",
+      "message": "Allocated MNC → Monday, slot s2, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "0qg6nrnb8",
+      "timestamp": "2026-03-11T05:34:32.926Z",
+      "message": "Allocated AI/ML → Monday, slot s1, room y3b648e1q",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "r5znirkln",
+      "timestamp": "2026-03-11T05:34:24.807Z",
+      "message": "Added room: E201",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "sjjlg9v0x",
+      "timestamp": "2026-03-11T05:34:02.337Z",
+      "message": "Removed room 62rz1f2w6 and its allocations",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "rlmywyiwz",
+      "timestamp": "2026-03-11T05:34:01.469Z",
+      "message": "Removed room t5mpyg7wu and its allocations",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
+    {
+      "id": "echfhxht4",
+      "timestamp": "2026-03-11T05:34:00.799Z",
+      "message": "Removed room d3hb4c4ih and its allocations",
+      "userId": "wynzosdee",
+      "userName": "Ravindra"
+    },
     {
       "id": "5e7hl1vqa",
       "timestamp": "2026-03-11T05:11:45.675Z",
@@ -1028,6 +1240,34 @@
   ],
   "settings": {},
   "notifications": [
+    {
+      "id": "bytao14mg",
+      "message": "📝 CS - Thursday updated: 'CS'",
+      "type": "info",
+      "timestamp": "2026-03-16T09:01:57.037Z",
+      "isRead": false
+    },
+    {
+      "id": "wupnbepda",
+      "message": "📝 CS - Monday updated: 'MATHS₹'",
+      "type": "info",
+      "timestamp": "2026-03-11T10:35:30.324Z",
+      "isRead": false
+    },
+    {
+      "id": "xvuzory34",
+      "message": "📝 CS - Monday updated: 'MATHS₹'",
+      "type": "info",
+      "timestamp": "2026-03-11T10:34:53.499Z",
+      "isRead": false
+    },
+    {
+      "id": "pm17lmf6q",
+      "message": "📝 CS - Monday updated: 'DBMS'",
+      "type": "info",
+      "timestamp": "2026-03-11T05:35:36.556Z",
+      "isRead": false
+    },
     {
       "id": "5gn30370y",
       "message": "📝 CS - Thursday updated: 'CS'",

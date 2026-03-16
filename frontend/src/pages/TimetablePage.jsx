@@ -12,7 +12,7 @@ export default function TimetablePage() {
       {currentUser ? <Navbar /> : (
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex justify-between items-center">
           <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-            Room Allocation
+            NIT KKR Time-Table
           </h1>
           <button
             onClick={() => navigate('/')}
