@@ -38,7 +38,7 @@ export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject,
 
         {/* Branch label — the text shown in parentheses */}
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-          Branch Label <span className="normal-case font-normal text-gray-400">(shown in parentheses)</span>
+          Professor Name <span className="normal-case font-normal text-gray-400">(shown in parentheses)</span>
         </label>
         <input
           type="text"

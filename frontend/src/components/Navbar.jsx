@@ -35,7 +35,7 @@ export default function Navbar() {
         {/* Left: logo + role badge */}
         <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
           <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 whitespace-nowrap">
-            Room Allocation
+            NIT KKR TIME-TABLE
           </h1>
           <span className={`px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide whitespace-nowrap ${roleBadgeClass}`}>
             {currentUser.role}

@@ -46,7 +46,7 @@ export default function LoginForm() {
                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back To College</h2>
           <p className="mt-1 text-gray-500 text-sm">Sign in with your Google account to continue</p>
         </div>
 
@@ -55,15 +55,15 @@ export default function LoginForm() {
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Access Levels</p>
           <div className="flex items-center gap-2 text-xs text-blue-600">
             <span className="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold shrink-0">A</span>
-            <span>Admin — assigned by system</span>
+            <span>Admin</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-blue-600">
             <span className="w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold shrink-0">T</span>
-            <span>Teacher — Gmail added by admin</span>
+            <span>Teacher</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-blue-600">
             <span className="w-5 h-5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center font-bold shrink-0">S</span>
-            <span>Student — any other Google account</span>
+            <span>Student</span>
           </div>
         </div>
 
