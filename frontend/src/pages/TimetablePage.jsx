@@ -59,7 +59,7 @@ export default function TimetablePage() {
       </main>
 
       <footer className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-xs py-6 border-t border-gray-100 mt-6">
-        © {new Date().getFullYear()} Room Allocation System · All Rights Reserved
+        © {new Date().getFullYear()} Room Allocated ·
       </footer>
     </div>
   );

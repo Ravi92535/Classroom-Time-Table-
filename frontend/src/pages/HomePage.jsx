@@ -7,7 +7,7 @@ export default function HomePage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-600">
           NIT KKR TIME-TABLE
         </h1>
-        <p className="mt-2 text-gray-500 text-sm">Manage classrooms, timetables and branches</p>
+        {/* <p className="mt-2 text-gray-500 text-sm">Manage classrooms, timetables and branches</p> */}
       </div>
       <LoginForm />
     </div>
