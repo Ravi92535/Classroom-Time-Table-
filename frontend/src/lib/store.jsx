@@ -1,15 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { generateId } from './utils.js';
 
-// ─── API Configuration ─────────────────────────────────────────────────────
+// ─── API ───────────────────────────────────────────────────────────────────────
 const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL  = 15000; // 15 seconds — re-fetch for viewers
-const SAVE_DEBOUNCE  = 800;   // ms — wait after last change before saving
+const POLL_INTERVAL = 20000; // 20 s — viewers get fresh data
+const SAVE_DEBOUNCE = 1000;  // 1 s  — wait for rapid clicks to settle
 
-// ─── Days ─────────────────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -23,387 +22,295 @@ const INITIAL_SLOTS    = [
 ];
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
-function orientationKey(userId) { return `room_view_orientation_${userId || 'guest'}`; }
-function loadOrientation(userId) {
-  try { return localStorage.getItem(orientationKey(userId)) || 'horizontal'; } catch { return 'horizontal'; }
-}
-function saveOrientation(userId, value) {
-  try { localStorage.setItem(orientationKey(userId), value); } catch { }
-}
+const orientationKey = (id) => `room_view_orientation_${id || 'guest'}`;
+function loadOrientation(id)    { try { return localStorage.getItem(orientationKey(id)) || 'horizontal'; } catch { return 'horizontal'; } }
+function saveOrientation(id, v) { try { localStorage.setItem(orientationKey(id), v); } catch { } }
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
-function toMinutes(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
-function timesOverlap(s1, e1, s2, e2) {
-  return toMinutes(s1) < toMinutes(e2) && toMinutes(s2) < toMinutes(e1);
-}
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const overlaps = (s1, e1, s2, e2) => toMin(s1) < toMin(e2) && toMin(s2) < toMin(e1);
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
-  const [currentUser,    setCurrentUser]    = useState(() => {
-    try { const s = localStorage.getItem('room_system_user'); return s ? JSON.parse(s) : null; }
-    catch { return null; }
-  });
-  const [users,          setUsers]          = useState(INITIAL_USERS);
-  const [branches,       setBranches]       = useState(INITIAL_BRANCHES);
-  const [rooms,          setRooms]          = useState(INITIAL_ROOMS);
-  const [timeSlots,      setTimeSlots]      = useState(INITIAL_SLOTS);
-  const [allocations,    setAllocations]    = useState([]);
-  const [logs,           setLogs]           = useState([]);
-  const [notifications,  setNotifications]  = useState([]);
-  const [isLoaded,       setIsLoaded]       = useState(false);
+  const [currentUser,   setCurrentUser]   = useState(() => { try { const s = localStorage.getItem('room_system_user'); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [users,         setUsers]         = useState(INITIAL_USERS);
+  const [branches,      setBranches]      = useState(INITIAL_BRANCHES);
+  const [rooms,         setRooms]         = useState(INITIAL_ROOMS);
+  const [timeSlots,     setTimeSlots]     = useState(INITIAL_SLOTS);
+  const [allocations,   setAllocations]   = useState([]);
+  const [logs,          setLogs]          = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoaded,      setIsLoaded]      = useState(false);
   const [viewOrientation, setViewOrientation] = useState('horizontal');
   const settings = { viewOrientation };
 
-  // ── Refs to track save state ──────────────────────────────────────────────
-  // pendingSave: true when user made a change that hasn't been saved yet
-  // isSavingNow: true while the fetch POST is in-flight
-  // skipNextPoll: true right after a save so poll doesn't overwrite fresh data
-  const pendingSave   = useRef(false);
-  const isSavingNow   = useRef(false);
-  const saveTimerRef  = useRef(null);
-
+  // ── THE KEY FIX: always-current snapshot ref ──────────────────────────────
+  // Every render updates this ref so scheduleSave ALWAYS reads fresh state,
+  // never a stale closure.
+  const stateRef = useRef({});
   useEffect(() => {
-    setViewOrientation(loadOrientation(currentUser?.id));
-  }, [currentUser?.id]);
+    stateRef.current = { users, branches, rooms, timeSlots, allocations, logs, notifications };
+  });
 
-  // ── Apply fetched data to state ───────────────────────────────────────────
-  const applyFetchedData = useCallback((parsed) => {
-    if (!parsed) return;
-    setUsers(parsed.users               || INITIAL_USERS);
-    setBranches(parsed.branches         || INITIAL_BRANCHES);
-    setRooms(parsed.rooms               || INITIAL_ROOMS);
-    setTimeSlots(parsed.timeSlots       || INITIAL_SLOTS);
-    setAllocations(parsed.allocations   || []);
-    setLogs(parsed.logs                 || []);
-    setNotifications(parsed.notifications || []);
+  // Save-gate refs — prevent poll from clobbering an in-flight save
+  const pendingSave  = useRef(false);
+  const isSavingNow  = useRef(false);
+  const saveTimer    = useRef(null);
+
+  useEffect(() => { setViewOrientation(loadOrientation(currentUser?.id)); }, [currentUser?.id]);
+
+  // ── fetch & apply ─────────────────────────────────────────────────────────
+  const applyData = useCallback((d) => {
+    if (!d) return;
+    setUsers(d.users               || INITIAL_USERS);
+    setBranches(d.branches         || INITIAL_BRANCHES);
+    setRooms(d.rooms               || INITIAL_ROOMS);
+    setTimeSlots(d.timeSlots       || INITIAL_SLOTS);
+    setAllocations(d.allocations   || []);
+    setLogs(d.logs                 || []);
+    setNotifications(d.notifications || []);
   }, []);
 
-  // ── Fetch from backend ────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/storage`);
-      if (!res.ok) throw new Error('fetch failed');
-      const parsed = await res.json();
-      applyFetchedData(parsed);
-    } catch (err) {
-      console.error('[Store] fetch error:', err.message);
-    }
-  }, [applyFetchedData]);
-
-  // ── Save to backend ───────────────────────────────────────────────────────
-  const saveData = useCallback((snapshot) => {
-    isSavingNow.current = true;
-    fetch(`${API_BASE}/api/storage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(snapshot),
-    })
-      .then(() => { pendingSave.current = false; })
-      .catch(err => console.error('[Store] save error:', err.message))
-      .finally(() => { isSavingNow.current = false; });
-  }, []);
+      if (!res.ok) throw new Error('bad response');
+      applyData(await res.json());
+    } catch (e) { console.error('[Store] fetch:', e.message); }
+  }, [applyData]);
 
   // ── Initial load ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    fetchData().finally(() => setIsLoaded(true));
-  }, []);
+  useEffect(() => { fetchData().finally(() => setIsLoaded(true)); }, []);
 
-  // ── Polling: only fetch if NO pending/in-flight save ─────────────────────
+  // ── Polling — SKIPS when admin has unsaved changes ────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => {
-      // If admin is actively making changes, skip this poll entirely
-      // to avoid overwriting their unsaved state
-      if (pendingSave.current || isSavingNow.current) {
-        console.log('[Poll] skipped — save pending');
-        return;
-      }
+    const id = setInterval(() => {
+      if (pendingSave.current || isSavingNow.current) return; // skip
       fetchData();
     }, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    return () => clearInterval(id);
   }, [fetchData]);
 
-  // ── Trigger save (called after every mutation) ────────────────────────────
-  // We pass a snapshot of the CURRENT state instead of relying on stale closure
-  const scheduleSave = useCallback((snapshot) => {
+  // ── Save helper — reads from stateRef so it's ALWAYS fresh ───────────────
+  // Call this after every mutation; pass partial overrides for the fields
+  // that just changed (so even the very first render gets the right values).
+  const scheduleSave = useCallback((overrides = {}) => {
     pendingSave.current = true;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveData(snapshot);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+
+    saveTimer.current = setTimeout(() => {
+      // Merge always-current ref with the overrides from this mutation
+      const snapshot = { ...stateRef.current, ...overrides, settings: {} };
+      isSavingNow.current = true;
+      fetch(`${API_BASE}/api/storage`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(snapshot),
+      })
+        .then(() => { pendingSave.current = false; })
+        .catch(e => console.error('[Store] save:', e.message))
+        .finally(() => { isSavingNow.current = false; });
     }, SAVE_DEBOUNCE);
-  }, [saveData]);
+  }, []); // no dependencies — uses ref, never stale
 
-  // ─── Log helper ───────────────────────────────────────────────────────────
-  const addLog = (message, currentUserRef, currentLogsRef) => {
-    if (!currentUserRef) return currentLogsRef;
-    return [{
-      id: generateId(), timestamp: new Date().toISOString(),
-      message, userId: currentUserRef.id, userName: currentUserRef.name,
-    }, ...currentLogsRef];
-  };
+  // ─── Tiny log builder (pure) ──────────────────────────────────────────────
+  const buildLog = (msg) => ({
+    id: generateId(), timestamp: new Date().toISOString(),
+    message: msg,
+    userId:   currentUser?.id   || '',
+    userName: currentUser?.name || '',
+  });
 
-  // ─── Google Login ─────────────────────────────────────────────────────────
+  // ─── Auth ─────────────────────────────────────────────────────────────────
   const loginWithGoogle = async (idToken) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
+      const res  = await fetch(`${API_BASE}/api/auth/google`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
       const data = await res.json();
-      if (!res.ok || !data.success)
-        return { success: false, error: data.error || 'Authentication failed.' };
+      if (!res.ok || !data.success) return { success: false, error: data.error || 'Authentication failed.' };
       setCurrentUser(data.user);
       localStorage.setItem('room_system_user', JSON.stringify(data.user));
       return { success: true, role: data.role };
-    } catch (err) {
-      return { success: false, error: 'Network error. Please try again.' };
-    }
+    } catch { return { success: false, error: 'Network error. Please try again.' }; }
   };
-
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('room_system_user');
-  };
+  const logout = () => { setCurrentUser(null); localStorage.removeItem('room_system_user'); };
 
   // ─── Settings ─────────────────────────────────────────────────────────────
-  const updateSettings = (partial) => {
-    if ('viewOrientation' in partial) {
-      setViewOrientation(partial.viewOrientation);
-      saveOrientation(currentUser?.id, partial.viewOrientation);
-    }
+  const updateSettings = (p) => {
+    if ('viewOrientation' in p) { setViewOrientation(p.viewOrientation); saveOrientation(currentUser?.id, p.viewOrientation); }
   };
 
   // ─── Notifications ────────────────────────────────────────────────────────
-  const addNotification = (message, type = 'info') => {
-    setNotifications(prev => [{
-      id: generateId(), message, type,
-      timestamp: new Date().toISOString(), isRead: false,
-    }, ...prev]);
-  };
+  const addNotification = (message, type = 'info') =>
+    setNotifications(prev => [{ id: generateId(), message, type, timestamp: new Date().toISOString(), isRead: false }, ...prev]);
   const clearNotifications = () => setNotifications([]);
 
   // ─── Branch CRUD ──────────────────────────────────────────────────────────
   const addBranch = (name) => {
     if (currentUser?.role !== 'admin') return;
-    if (branches.some(b => b.name.toLowerCase() === name.toLowerCase())) { alert(`Branch "${name}" already exists.`); return; }
-    setBranches(prev => {
-      const next = [...prev, { id: generateId(), name }];
-      const newLogs = addLog(`Added branch: ${name}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches: next, rooms, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    if (stateRef.current.branches.some(b => b.name.toLowerCase() === name.toLowerCase())) { alert(`Branch "${name}" already exists.`); return; }
+    const newBranches = [...stateRef.current.branches, { id: generateId(), name }];
+    const newLogs     = [buildLog(`Added branch: ${name}`), ...stateRef.current.logs];
+    setBranches(newBranches);
+    setLogs(newLogs);
+    scheduleSave({ branches: newBranches, logs: newLogs });
   };
   const removeBranch = (id) => {
     if (currentUser?.role !== 'admin') return;
-    setBranches(prev => {
-      const next = prev.filter(b => b.id !== id);
-      const nextUsers = users.filter(u => !(u.role === 'teacher' && u.branchId === id));
-      const nextAllocs = allocations.filter(a => a.branchId !== id);
-      const newLogs = addLog(`Removed branch ${id}`, currentUser, logs);
-      setUsers(nextUsers);
-      setAllocations(nextAllocs);
-      setLogs(newLogs);
-      scheduleSave({ users: nextUsers, branches: next, rooms, timeSlots, allocations: nextAllocs, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newBranches  = stateRef.current.branches.filter(b => b.id !== id);
+    const newUsers     = stateRef.current.users.filter(u => !(u.role === 'teacher' && u.branchId === id));
+    const newAllocs    = stateRef.current.allocations.filter(a => a.branchId !== id);
+    const newLogs      = [buildLog(`Removed branch ${id}`), ...stateRef.current.logs];
+    setBranches(newBranches); setUsers(newUsers); setAllocations(newAllocs); setLogs(newLogs);
+    scheduleSave({ branches: newBranches, users: newUsers, allocations: newAllocs, logs: newLogs });
   };
 
   // ─── Room CRUD ────────────────────────────────────────────────────────────
   const addRoom = (name) => {
     if (currentUser?.role !== 'admin') return;
-    if (rooms.some(r => r.name.toLowerCase() === name.toLowerCase())) { alert(`Room "${name}" already exists.`); return; }
-    setRooms(prev => {
-      const next = [...prev, { id: generateId(), name }];
-      const newLogs = addLog(`Added room: ${name}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms: next, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    if (stateRef.current.rooms.some(r => r.name.toLowerCase() === name.toLowerCase())) { alert(`Room "${name}" already exists.`); return; }
+    const newRooms = [...stateRef.current.rooms, { id: generateId(), name }];
+    const newLogs  = [buildLog(`Added room: ${name}`), ...stateRef.current.logs];
+    setRooms(newRooms);
+    setLogs(newLogs);
+    scheduleSave({ rooms: newRooms, logs: newLogs });
   };
   const removeRoom = (id) => {
     if (currentUser?.role !== 'admin') return;
-    setRooms(prev => {
-      const next = prev.filter(r => r.id !== id);
-      const nextAllocs = allocations.filter(a => a.roomId !== id);
-      const newLogs = addLog(`Removed room ${id}`, currentUser, logs);
-      setAllocations(nextAllocs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms: next, timeSlots, allocations: nextAllocs, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newRooms  = stateRef.current.rooms.filter(r => r.id !== id);
+    const newAllocs = stateRef.current.allocations.filter(a => a.roomId !== id);
+    const newLogs   = [buildLog(`Removed room ${id}`), ...stateRef.current.logs];
+    setRooms(newRooms); setAllocations(newAllocs); setLogs(newLogs);
+    scheduleSave({ rooms: newRooms, allocations: newAllocs, logs: newLogs });
   };
 
   // ─── TimeSlot CRUD ────────────────────────────────────────────────────────
   const addTimeSlot = (startTime, endTime, period) => {
     if (currentUser?.role !== 'admin') return { success: false, error: 'Not authorised.' };
-    const periodNum = Number(period);
-    if (toMinutes(startTime) >= toMinutes(endTime)) return { success: false, error: 'Start must be before end.' };
-    if (timeSlots.some(s => s.period === periodNum)) return { success: false, error: `Period ${periodNum} already exists.` };
-    const conflict = timeSlots.find(s => timesOverlap(startTime, endTime, s.startTime, s.endTime));
+    const p = Number(period);
+    if (toMin(startTime) >= toMin(endTime))       return { success: false, error: 'Start must be before end.' };
+    if (stateRef.current.timeSlots.some(s => s.period === p)) return { success: false, error: `Period ${p} already exists.` };
+    const conflict = stateRef.current.timeSlots.find(s => overlaps(startTime, endTime, s.startTime, s.endTime));
     if (conflict) return { success: false, error: `Overlaps with Period ${conflict.period} (${conflict.label}).` };
-    const label = `${startTime} - ${endTime}`;
-    setTimeSlots(prev => {
-      const next = [...prev, { id: generateId(), startTime, endTime, label, period: periodNum }].sort((a, b) => a.period - b.period);
-      const newLogs = addLog(`Added period ${periodNum}: ${label}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms, timeSlots: next, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const label      = `${startTime} - ${endTime}`;
+    const newSlots   = [...stateRef.current.timeSlots, { id: generateId(), startTime, endTime, label, period: p }].sort((a, b) => a.period - b.period);
+    const newLogs    = [buildLog(`Added period ${p}: ${label}`), ...stateRef.current.logs];
+    setTimeSlots(newSlots); setLogs(newLogs);
+    scheduleSave({ timeSlots: newSlots, logs: newLogs });
     return { success: true };
   };
   const removeTimeSlot = (id) => {
     if (currentUser?.role !== 'admin') return;
-    setTimeSlots(prev => {
-      const next = prev.filter(s => s.id !== id);
-      const nextAllocs = allocations.filter(a => a.slotId !== id);
-      const newLogs = addLog(`Removed time slot ${id}`, currentUser, logs);
-      setAllocations(nextAllocs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms, timeSlots: next, allocations: nextAllocs, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newSlots  = stateRef.current.timeSlots.filter(s => s.id !== id);
+    const newAllocs = stateRef.current.allocations.filter(a => a.slotId !== id);
+    const newLogs   = [buildLog(`Removed time slot ${id}`), ...stateRef.current.logs];
+    setTimeSlots(newSlots); setAllocations(newAllocs); setLogs(newLogs);
+    scheduleSave({ timeSlots: newSlots, allocations: newAllocs, logs: newLogs });
   };
 
   // ─── Teacher CRUD ─────────────────────────────────────────────────────────
   const addTeacher = (name, email, branchId) => {
     if (currentUser?.role !== 'admin' || !email || !branchId) return;
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
+    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
     const displayName = name || email.split('@')[0];
-    setUsers(prev => {
-      const next = [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId }];
-      const newLogs = addLog(`Added teacher: ${displayName} (${email})`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users: next, branches, rooms, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newUsers    = [...stateRef.current.users, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId }];
+    const newLogs     = [buildLog(`Added teacher: ${displayName} (${email})`), ...stateRef.current.logs];
+    setUsers(newUsers); setLogs(newLogs);
+    scheduleSave({ users: newUsers, logs: newLogs });
   };
   const removeTeacher = (id) => {
     if (currentUser?.role !== 'admin') return;
-    setUsers(prev => {
-      const next = prev.filter(u => u.id !== id);
-      const newLogs = addLog(`Removed teacher ${id}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users: next, branches, rooms, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newUsers = stateRef.current.users.filter(u => u.id !== id);
+    const newLogs  = [buildLog(`Removed teacher ${id}`), ...stateRef.current.logs];
+    setUsers(newUsers); setLogs(newLogs);
+    scheduleSave({ users: newUsers, logs: newLogs });
   };
 
   // ─── Admin CRUD ───────────────────────────────────────────────────────────
   const addAdmin = (name, email) => {
     if (currentUser?.role !== 'admin') return;
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
+    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
     const displayName = name || email.split('@')[0];
-    setUsers(prev => {
-      const next = [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' }];
-      const newLogs = addLog(`Added admin: ${displayName} (${email})`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users: next, branches, rooms, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newUsers    = [...stateRef.current.users, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' }];
+    const newLogs     = [buildLog(`Added admin: ${displayName} (${email})`), ...stateRef.current.logs];
+    setUsers(newUsers); setLogs(newLogs);
+    scheduleSave({ users: newUsers, logs: newLogs });
   };
   const removeAdmin = (id) => {
     if (currentUser?.role !== 'admin') return;
-    if (users.filter(u => u.role === 'admin').length <= 1) { alert('Cannot remove last admin.'); return; }
-    setUsers(prev => {
-      const next = prev.filter(u => u.id !== id);
-      const newLogs = addLog(`Removed admin ${id}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users: next, branches, rooms, timeSlots, allocations, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    if (stateRef.current.users.filter(u => u.role === 'admin').length <= 1) { alert('Cannot remove last admin.'); return; }
+    const newUsers = stateRef.current.users.filter(u => u.id !== id);
+    const newLogs  = [buildLog(`Removed admin ${id}`), ...stateRef.current.logs];
+    setUsers(newUsers); setLogs(newLogs);
+    scheduleSave({ users: newUsers, logs: newLogs });
   };
 
   // ─── Allocation CRUD ──────────────────────────────────────────────────────
   const setAllocation = (day, slotId, roomId, branchId) => {
     if (currentUser?.role !== 'admin') return;
-    const branch = branches.find(b => b.id === branchId);
+    const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
-    setAllocations(prev => {
-      const next = [
-        ...prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
-        { id: generateId(), day, slotId, roomId, branchId, subject: branch.name, updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
-      ];
-      const newLogs = addLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms, timeSlots, allocations: next, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newAllocs = [
+      ...stateRef.current.allocations.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
+      { id: generateId(), day, slotId, roomId, branchId, subject: branch.name, updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
+    ];
+    const newLogs = [buildLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`), ...stateRef.current.logs];
+    setAllocations(newAllocs); setLogs(newLogs);
+    scheduleSave({ allocations: newAllocs, logs: newLogs });
   };
 
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
-    setAllocations(prev => {
-      const next = prev.filter(a => a.id !== allocationId);
-      const newLogs = addLog(`Removed allocation ${allocationId}`, currentUser, logs);
-      setLogs(newLogs);
-      scheduleSave({ users, branches, rooms, timeSlots, allocations: next, logs: newLogs, settings: {}, notifications });
-      return next;
-    });
+    const newAllocs = stateRef.current.allocations.filter(a => a.id !== allocationId);
+    const newLogs   = [buildLog(`Removed allocation ${allocationId}`), ...stateRef.current.logs];
+    setAllocations(newAllocs); setLogs(newLogs);
+    scheduleSave({ allocations: newAllocs, logs: newLogs });
   };
 
   const updateAllocationSubject = (allocationId, newSubject, newBranchLabel) => {
     if (!currentUser) return;
-    const allocation = allocations.find(a => a.id === allocationId);
+    const allocation = stateRef.current.allocations.find(a => a.id === allocationId);
     if (!allocation) return;
     if (currentUser.role === 'teacher') {
       if (!currentUser.branchId) { alert('No branch assigned.'); return; }
       if (currentUser.branchId !== allocation.branchId) { alert('You can only edit your own branch slots.'); return; }
     } else if (currentUser.role !== 'admin') return;
 
-    setAllocations(prev => {
-      const next = prev.map(a =>
-        a.id === allocationId
-          ? { ...a, subject: newSubject, branchLabel: newBranchLabel !== undefined ? newBranchLabel : a.branchLabel, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
-          : a
-      );
-      const branch = branches.find(b => b.id === allocation.branchId);
-      const newLogs = addLog(`Updated slot: "${newSubject}" (${newBranchLabel ?? branch?.name})`, currentUser, logs);
-      const newNotifs = [{ id: generateId(), message: `📝 ${branch?.name} - ${allocation.day} updated: '${newSubject}'`, type: 'info', timestamp: new Date().toISOString(), isRead: false }, ...notifications];
-      setLogs(newLogs);
-      setNotifications(newNotifs);
-      scheduleSave({ users, branches, rooms, timeSlots, allocations: next, logs: newLogs, settings: {}, notifications: newNotifs });
-      return next;
-    });
+    const newAllocs = stateRef.current.allocations.map(a =>
+      a.id === allocationId
+        ? { ...a, subject: newSubject, branchLabel: newBranchLabel !== undefined ? newBranchLabel : a.branchLabel, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
+        : a
+    );
+    const branch   = stateRef.current.branches.find(b => b.id === allocation.branchId);
+    const newLogs  = [buildLog(`Updated slot: "${newSubject}" (${newBranchLabel ?? branch?.name})`), ...stateRef.current.logs];
+    const newNotifs = [
+      { id: generateId(), message: `📝 ${branch?.name} - ${allocation.day} updated: '${newSubject}'`, type: 'info', timestamp: new Date().toISOString(), isRead: false },
+      ...stateRef.current.notifications,
+    ];
+    setAllocations(newAllocs); setLogs(newLogs); setNotifications(newNotifs);
+    scheduleSave({ allocations: newAllocs, logs: newLogs, notifications: newNotifs });
   };
 
-  // ─── Reset All Data ───────────────────────────────────────────────────────
+  // ─── Reset ────────────────────────────────────────────────────────────────
   const resetData = async () => {
     try {
       pendingSave.current = false;
-      isSavingNow.current = false;
-      await fetch(`${API_BASE}/api/storage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(null),
-      });
-      setUsers(INITIAL_USERS);
-      setBranches(INITIAL_BRANCHES);
-      setRooms(INITIAL_ROOMS);
-      setTimeSlots(INITIAL_SLOTS);
-      setAllocations([]);
-      setLogs([]);
-      setNotifications([]);
-    } catch (err) {
-      console.error('[Store] resetData failed:', err);
-    }
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      await fetch(`${API_BASE}/api/storage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(null) });
+      setUsers(INITIAL_USERS); setBranches(INITIAL_BRANCHES); setRooms(INITIAL_ROOMS);
+      setTimeSlots(INITIAL_SLOTS); setAllocations([]); setLogs([]); setNotifications([]);
+    } catch (e) { console.error('[Store] reset:', e); }
   };
 
   return (
     <StoreContext.Provider value={{
       currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications,
       loginWithGoogle, logout,
-      addBranch, removeBranch,
-      addRoom, removeRoom,
-      addTimeSlot, removeTimeSlot,
-      addTeacher, removeTeacher,
-      addAdmin, removeAdmin,
-      updateSettings,
+      addBranch, removeBranch, addRoom, removeRoom, addTimeSlot, removeTimeSlot,
+      addTeacher, removeTeacher, addAdmin, removeAdmin, updateSettings,
       setAllocation, removeAllocation, updateAllocationSubject,
-      addNotification, clearNotifications,
-      resetData,
+      addNotification, clearNotifications, resetData,
     }}>
       {children}
     </StoreContext.Provider>
