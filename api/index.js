@@ -1,2 +1,6 @@
-// Vercel serverless function entry point
-module.exports = require('../backend/server.js');
+// Vercel serverless function - wraps Express app
+require('dotenv').config({ path: '../backend/.env' });
+const app = require('../backend/server.js');
+
+// Export the Express app directly - Vercel will call it as a handler
+module.exports = app;
