@@ -2,13 +2,13 @@
   "version": 2,
   "builds": [
     {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "frontend/dist" }
-    },
-    {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -21,15 +21,7 @@
       "dest": "backend/server.js"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "frontend/dist/assets/$1"
-    },
-    {
-      "src": "/(.*)\\.(?:js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)",
-      "dest": "frontend/dist/$1.$2"
-    },
-    {
-      "src": "/(.*)",
+      "src": "/(?!api|health).*",
       "dest": "frontend/dist/index.html"
     }
   ]
