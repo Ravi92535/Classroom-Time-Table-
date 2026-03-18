@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { generateId } from './utils.js';
 
+// ─── API Configuration ────────────────────────────────────────────────────
+const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://classroom-time-table.vercel.app'
+  : '';
+
 // ─── Days of the week ─────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -80,7 +85,7 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const res = await fetch('/api/storage');
+        const res = await fetch(`${API_BASE}/api/storage`);
         if (!res.ok) throw new Error('Failed to fetch');
         const parsed = await res.json();
         if (parsed) {
@@ -105,7 +110,7 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (!isLoaded) return;
     const timer = setTimeout(() => {
-      fetch('/api/storage', {
+      fetch(`${API_BASE}/api/storage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,7 +139,7 @@ export function StoreProvider({ children }) {
   // ─── Google Login ─────────────────────────────────────────────────────────
   const loginWithGoogle = async (idToken) => {
     try {
-      const res = await fetch('/api/auth/google', {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
@@ -320,7 +325,7 @@ export function StoreProvider({ children }) {
   // ─── Reset All Data ───────────────────────────────────────────────────────
   const resetData = async () => {
     try {
-      await fetch('/api/storage', {
+      await fetch(`${API_BASE}/api/storage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(null),
