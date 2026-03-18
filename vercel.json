@@ -2,7 +2,9 @@
   "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "env": {
-    "NODE_ENV": "production"
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs18.x"
+    }
   }
 }
