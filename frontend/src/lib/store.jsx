@@ -2,9 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { generateId } from './utils.js';
 
 // ─── API Configuration ────────────────────────────────────────────────────
-const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? 'https://classroom-time-table.vercel.app'
-  : '';
+const isProduction = typeof window !== 'undefined' &&
+                     (window.location.hostname === 'classroom-time-table-ccj7.vercel.app' ||
+                      window.location.hostname.includes('vercel.app'));
+const API_BASE = isProduction ? 'https://classroom-time-table.vercel.app' : '';
 
 // ─── Days of the week ─────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
