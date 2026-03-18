@@ -3,8 +3,7 @@ const express = require('express');
 const cors    = require('cors');
 const { Pool } = require('pg');
 
-const app  = express();
-const PORT = process.env.PORT || 3001;
+const app = express();
 
 // ─── Supabase / PostgreSQL Pool ───────────────────────────────────────────────
 if (!process.env.SUPABASE_DB_URL) {
@@ -14,13 +13,22 @@ if (!process.env.SUPABASE_DB_URL) {
 const pool = new Pool({
   connectionString: process.env.SUPABASE_DB_URL,
   ssl: { rejectUnauthorized: false },
-  max: 10,
+  max: 5,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 });
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use((req, res, next) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 app.use(express.json({ limit: '5mb' }));
 
 // ─── Seed / Default Data ───────────────────────────────────────────────────────
@@ -49,63 +57,75 @@ const INITIAL_DATA = {
   notifications: [],
 };
 
-// ─── DB Initialisation ─────────────────────────────────────────────────────────
-let dbInitialised = false;
+// ─── DB Init (runs once per serverless instance, NOT per request) ──────────────
+let dbReady = false;
+let dbInitPromise = null;
 
-async function initDB() {
-  if (dbInitialised) return;           // Only run once per serverless instance
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE NOT NULL,
-        role TEXT NOT NULL DEFAULT 'student', branch_id TEXT, picture TEXT
-      );
-      CREATE TABLE IF NOT EXISTS branches (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS rooms    (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS time_slots (
-        id TEXT PRIMARY KEY, start_time TEXT, end_time TEXT, label TEXT, period INT
-      );
-      CREATE TABLE IF NOT EXISTS allocations (
-        id TEXT PRIMARY KEY, day TEXT, slot_id TEXT, room_id TEXT,
-        branch_id TEXT, subject TEXT, updated_by TEXT,
-        updated_at TIMESTAMPTZ, branch_label TEXT
-      );
-      CREATE TABLE IF NOT EXISTS logs (
-        id TEXT PRIMARY KEY, timestamp TIMESTAMPTZ,
-        message TEXT, user_id TEXT, user_name TEXT
-      );
-      CREATE TABLE IF NOT EXISTS notifications (
-        id TEXT PRIMARY KEY, message TEXT, type TEXT,
-        timestamp TIMESTAMPTZ, is_read BOOLEAN DEFAULT false
-      );
-      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB);
-    `);
+function ensureDB() {
+  if (dbReady) return Promise.resolve();
+  if (dbInitPromise) return dbInitPromise;
 
-    const { rows } = await client.query('SELECT COUNT(*) FROM users');
-    if (parseInt(rows[0].count) === 0) {
-      await seedInitialData(client);
+  dbInitPromise = (async () => {
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE NOT NULL,
+          role TEXT NOT NULL DEFAULT 'student', branch_id TEXT, picture TEXT
+        );
+        CREATE TABLE IF NOT EXISTS branches (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS rooms    (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS time_slots (
+          id TEXT PRIMARY KEY, start_time TEXT, end_time TEXT, label TEXT, period INT
+        );
+        CREATE TABLE IF NOT EXISTS allocations (
+          id TEXT PRIMARY KEY, day TEXT, slot_id TEXT, room_id TEXT,
+          branch_id TEXT, subject TEXT, updated_by TEXT,
+          updated_at TIMESTAMPTZ, branch_label TEXT
+        );
+        CREATE TABLE IF NOT EXISTS logs (
+          id TEXT PRIMARY KEY, timestamp TIMESTAMPTZ,
+          message TEXT, user_id TEXT, user_name TEXT
+        );
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY, message TEXT, type TEXT,
+          timestamp TIMESTAMPTZ, is_read BOOLEAN DEFAULT false
+        );
+        CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB);
+      `);
+
+      const { rows } = await client.query('SELECT COUNT(*) FROM users');
+      if (parseInt(rows[0].count) === 0) {
+        console.log('🌱  Seeding initial data...');
+        await seedInitialData(client);
+      }
+
+      await client.query(`
+        INSERT INTO users (id, name, email, role)
+        VALUES ('admin-ravi', 'Ravi (Admin)', 'ravi86198701@gmail.com', 'admin')
+        ON CONFLICT (id) DO NOTHING
+      `);
+
+      dbReady = true;
+      console.log('✅  Supabase DB ready');
+    } finally {
+      client.release();
     }
+  })().catch(err => {
+    // Reset so next request retries
+    dbInitPromise = null;
+    dbReady = false;
+    throw err;
+  });
 
-    // Always ensure root admin exists
-    await client.query(`
-      INSERT INTO users (id, name, email, role)
-      VALUES ('admin-ravi', 'Ravi (Admin)', 'ravi86198701@gmail.com', 'admin')
-      ON CONFLICT (id) DO NOTHING
-    `);
-
-    dbInitialised = true;
-    console.log('✅  Supabase DB ready');
-  } finally {
-    client.release();
-  }
+  return dbInitPromise;
 }
 
 async function seedInitialData(client) {
   for (const u of INITIAL_DATA.users)
     await client.query(
       `INSERT INTO users (id,name,email,role,branch_id,picture) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
-      [u.id, u.name, u.email, u.role, u.branchId||null, u.picture||null]
+      [u.id, u.name, u.email, u.role, u.branchId || null, u.picture || null]
     );
   for (const b of INITIAL_DATA.branches)
     await client.query('INSERT INTO branches (id,name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [b.id, b.name]);
@@ -188,7 +208,7 @@ async function writeData(data) {
           ON CONFLICT (id) DO UPDATE SET
             name=EXCLUDED.name, email=EXCLUDED.email, role=EXCLUDED.role,
             branch_id=EXCLUDED.branch_id, picture=EXCLUDED.picture
-        `, [u.id, u.name, u.email, u.role, u.branchId||null, u.picture||null]);
+        `, [u.id, u.name, u.email, u.role, u.branchId || null, u.picture || null]);
     }
 
     if (Array.isArray(data.branches)) {
@@ -216,11 +236,10 @@ async function writeData(data) {
       await client.query('DELETE FROM allocations');
       for (const a of data.allocations)
         await client.query(`
-          INSERT INTO allocations
-            (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
+          INSERT INTO allocations (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         `, [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
-            a.updatedBy, a.updatedAt||new Date(), a.branchLabel||null]);
+            a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]);
     }
 
     if (Array.isArray(data.logs))
@@ -228,14 +247,14 @@ async function writeData(data) {
         await client.query(`
           INSERT INTO logs (id,timestamp,message,user_id,user_name)
           VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING
-        `, [l.id, l.timestamp||new Date(), l.message, l.userId, l.userName]);
+        `, [l.id, l.timestamp || new Date(), l.message, l.userId, l.userName]);
 
     if (Array.isArray(data.notifications)) {
       await client.query('DELETE FROM notifications');
       for (const n of data.notifications)
         await client.query(
           `INSERT INTO notifications (id,message,type,timestamp,is_read) VALUES ($1,$2,$3,$4,$5)`,
-          [n.id, n.message, n.type, n.timestamp||new Date(), n.isRead??false]
+          [n.id, n.message, n.type, n.timestamp || new Date(), n.isRead ?? false]
         );
     }
 
@@ -258,23 +277,16 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ─── Middleware: init DB before every request ──────────────────────────────────
-// Vercel serverless functions have no persistent boot — we init lazily.
-app.use(async (req, res, next) => {
-  try {
-    await initDB();
-    next();
-  } catch (err) {
-    console.error('DB init error:', err.message);
-    res.status(500).json({ error: 'Database initialisation failed', detail: err.message });
-  }
-});
-
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
+// Health — no DB needed, always fast
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 app.get('/api/storage', async (req, res) => {
-  try { res.json(await readData()); }
-  catch (err) {
+  try {
+    await ensureDB();
+    res.json(await readData());
+  } catch (err) {
     console.error('[GET /api/storage]', err.message);
     res.status(500).json({ error: 'Failed to read data', detail: err.message });
   }
@@ -282,6 +294,7 @@ app.get('/api/storage', async (req, res) => {
 
 app.post('/api/storage', async (req, res) => {
   try {
+    await ensureDB();
     const body = req.body;
     await writeData(!body || Object.keys(body).length === 0 ? INITIAL_DATA : body);
     res.json({ success: true });
@@ -296,48 +309,52 @@ app.post('/api/auth/google', async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: 'Token required' });
 
+    // Verify with Google
     const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${idToken}` },
     });
     if (!googleRes.ok) return res.status(401).json({ error: 'Invalid or expired Google token.' });
 
     const { email: rawEmail, name, picture } = await googleRes.json();
-    const email  = rawEmail.toLowerCase();
+    const email = rawEmail.toLowerCase();
+
+    await ensureDB();
+
     const client = await pool.connect();
     try {
       const { rows } = await client.query('SELECT * FROM users WHERE LOWER(email) = $1', [email]);
       const existing = rows[0];
+
       if (existing) {
         if (!existing.picture)
           await client.query('UPDATE users SET picture=$1 WHERE id=$2', [picture, existing.id]);
         return res.json({
-          success: true, role: existing.role,
+          success: true,
+          role: existing.role,
           user: {
             id: existing.id, name: existing.name, email: existing.email,
-            role: existing.role, branchId: existing.branch_id||undefined, picture,
+            role: existing.role, branchId: existing.branch_id || undefined, picture,
           },
         });
       }
+
+      // Unknown user → transient student
       return res.json({
         success: true, role: 'student',
         user: { id: 'student-' + generateId(), name, email, role: 'student', picture },
       });
-    } finally { client.release(); }
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('[/api/auth/google]', err.message);
-    res.status(401).json({ error: 'Authentication failed.', detail: err.message });
+    res.status(500).json({ error: 'Authentication failed.', detail: err.message });
   }
 });
-
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
-
-app.get('/', (req, res) => res.json({ message: 'Room System API', status: 'running' }));
 
 app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
 });
 
-// ─── Export for Vercel (NO app.listen) ────────────────────────────────────────
-// Vercel calls this file as a serverless function — never use app.listen() here.
-// For local dev, run:  node localServer.js
+// ─── Export for Vercel ────────────────────────────────────────────────────────
 module.exports = app;
