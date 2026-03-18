@@ -331,6 +331,8 @@ app.post('/api/auth/google', async (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+app.get('/', (req, res) => res.json({ message: 'Room System API', status: 'running' }));
+
 app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
 });
