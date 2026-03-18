@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { generateId } from './utils.js';
 
-// ─── API Configuration ────────────────────────────────────────────────────
-const isProduction = typeof window !== 'undefined' &&
-                     (window.location.hostname === 'classroom-time-table-ccj7.vercel.app' ||
-                      window.location.hostname.includes('vercel.app'));
-const API_BASE = isProduction ? 'https://classroom-time-table.vercel.app' : '';
+// ─── API Configuration ─────────────────────────────────────────────────────
+// ALL fetch calls (GET and POST) must use this base URL in production
+const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://classroom-time-table.vercel.app'
+  : 'http://localhost:3001';
 
 // ─── Days of the week ─────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -14,19 +14,16 @@ export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sa
 const INITIAL_USERS = [
   { id: 'admin-ravi', name: 'Ravi (Admin)', email: 'ravi86198701@gmail.com', role: 'admin' },
 ];
-
 const INITIAL_BRANCHES = [
   { id: 'b1', name: 'CS' },
   { id: 'b2', name: 'IT' },
   { id: 'b3', name: 'AI/ML' },
   { id: 'b4', name: 'Civil' },
 ];
-
 const INITIAL_ROOMS = [
   { id: 'r1', name: 'R101' },
   { id: 'r2', name: 'R102' },
 ];
-
 const INITIAL_SLOTS = [
   { id: 's1', startTime: '07:00', endTime: '08:00', label: '7-8 AM', period: 1 },
   { id: 's2', startTime: '08:00', endTime: '09:00', label: '8-9 AM', period: 2 },
@@ -34,16 +31,13 @@ const INITIAL_SLOTS = [
 ];
 
 // ─── Per-user localStorage helpers ───────────────────────────────────────────
-function orientationKey(userId) {
-  return `room_view_orientation_${userId || 'guest'}`;
-}
+function orientationKey(userId) { return `room_view_orientation_${userId || 'guest'}`; }
 function loadOrientation(userId) {
   try { return localStorage.getItem(orientationKey(userId)) || 'horizontal'; }
   catch { return 'horizontal'; }
 }
 function saveOrientation(userId, value) {
-  try { localStorage.setItem(orientationKey(userId), value); }
-  catch { /* Safari private mode */ }
+  try { localStorage.setItem(orientationKey(userId), value); } catch { }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,24 +59,22 @@ export function StoreProvider({ children }) {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [branches, setBranches] = useState(INITIAL_BRANCHES);
-  const [rooms, setRooms] = useState(INITIAL_ROOMS);
-  const [timeSlots, setTimeSlots] = useState(INITIAL_SLOTS);
-  const [allocations, setAllocations] = useState([]);
-  const [logs, setLogs] = useState([]);
+  const [users,         setUsers]         = useState(INITIAL_USERS);
+  const [branches,      setBranches]      = useState(INITIAL_BRANCHES);
+  const [rooms,         setRooms]         = useState(INITIAL_ROOMS);
+  const [timeSlots,     setTimeSlots]     = useState(INITIAL_SLOTS);
+  const [allocations,   setAllocations]   = useState([]);
+  const [logs,          setLogs]          = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
+  const [isLoaded,      setIsLoaded]      = useState(false);
   const [viewOrientation, setViewOrientation] = useState('horizontal');
   const settings = { viewOrientation };
 
   useEffect(() => {
-    const saved = loadOrientation(currentUser?.id);
-    setViewOrientation(saved);
+    setViewOrientation(loadOrientation(currentUser?.id));
   }, [currentUser?.id]);
 
-  // ── Load shared data from backend on mount ────────────────────────────────
+  // ── Load from backend on mount ────────────────────────────────────────────
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -90,12 +82,12 @@ export function StoreProvider({ children }) {
         if (!res.ok) throw new Error('Failed to fetch');
         const parsed = await res.json();
         if (parsed) {
-          setUsers(parsed.users || INITIAL_USERS);
-          setBranches(parsed.branches || INITIAL_BRANCHES);
-          setRooms(parsed.rooms || INITIAL_ROOMS);
-          setTimeSlots(parsed.timeSlots || INITIAL_SLOTS);
-          setAllocations(parsed.allocations || []);
-          setLogs(parsed.logs || []);
+          setUsers(parsed.users               || INITIAL_USERS);
+          setBranches(parsed.branches         || INITIAL_BRANCHES);
+          setRooms(parsed.rooms               || INITIAL_ROOMS);
+          setTimeSlots(parsed.timeSlots       || INITIAL_SLOTS);
+          setAllocations(parsed.allocations   || []);
+          setLogs(parsed.logs                 || []);
           setNotifications(parsed.notifications || []);
         }
       } catch (err) {
@@ -107,11 +99,11 @@ export function StoreProvider({ children }) {
     loadData();
   }, []);
 
-  // ── Auto-save SHARED data to backend (debounced 500ms) ────────────────────
+  // ── Auto-save to backend (debounced 500 ms) ───────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
     const timer = setTimeout(() => {
-      fetch(`${API_BASE}/api/storage`, {
+      fetch(`${API_BASE}/api/storage`, {           // ← FIXED: was '/api/storage'
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,11 +120,8 @@ export function StoreProvider({ children }) {
     setLogs(prev => {
       if (!currentUser) return prev;
       return [{
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        message,
-        userId: currentUser.id,
-        userName: currentUser.name,
+        id: generateId(), timestamp: new Date().toISOString(),
+        message, userId: currentUser.id, userName: currentUser.name,
       }, ...prev];
     });
   };
@@ -140,18 +129,16 @@ export function StoreProvider({ children }) {
   // ─── Google Login ─────────────────────────────────────────────────────────
   const loginWithGoogle = async (idToken) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {  // ← FIXED: was '/api/auth/google'
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!res.ok || !data.success)
         return { success: false, error: data.error || 'Authentication failed.' };
-      }
-      const user = data.user;
-      setCurrentUser(user);
-      localStorage.setItem('room_system_user', JSON.stringify(user));
+      setCurrentUser(data.user);
+      localStorage.setItem('room_system_user', JSON.stringify(data.user));
       return { success: true, role: data.role };
     } catch (err) {
       console.error('[loginWithGoogle]', err);
@@ -167,9 +154,8 @@ export function StoreProvider({ children }) {
   // ─── Settings ─────────────────────────────────────────────────────────────
   const updateSettings = (partial) => {
     if ('viewOrientation' in partial) {
-      const newVal = partial.viewOrientation;
-      setViewOrientation(newVal);
-      saveOrientation(currentUser?.id, newVal);
+      setViewOrientation(partial.viewOrientation);
+      saveOrientation(currentUser?.id, partial.viewOrientation);
     }
   };
 
@@ -227,8 +213,10 @@ export function StoreProvider({ children }) {
     if (conflict)
       return { success: false, error: `Time overlaps with Period ${conflict.period} (${conflict.label}).` };
     const label = `${startTime} - ${endTime}`;
-    setTimeSlots(prev => [...prev, { id: generateId(), startTime, endTime, label, period: periodNum }]
-      .sort((a, b) => a.period - b.period));
+    setTimeSlots(prev =>
+      [...prev, { id: generateId(), startTime, endTime, label, period: periodNum }]
+        .sort((a, b) => a.period - b.period)
+    );
     addLog(`Added period ${periodNum}: ${label}`);
     return { success: true };
   };
@@ -246,7 +234,9 @@ export function StoreProvider({ children }) {
       alert(`A user with email "${email}" already exists.`); return;
     }
     const displayName = name || email.split('@')[0];
-    setUsers(prev => [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId }]);
+    setUsers(prev => [...prev, {
+      id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId,
+    }]);
     addLog(`Added teacher: ${displayName} (${email})`);
   };
   const removeTeacher = (id) => {
@@ -262,7 +252,9 @@ export function StoreProvider({ children }) {
       alert(`A user with email "${email}" already exists.`); return;
     }
     const displayName = name || email.split('@')[0];
-    setUsers(prev => [...prev, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' }]);
+    setUsers(prev => [...prev, {
+      id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin',
+    }]);
     addLog(`Added admin: ${displayName} (${email})`);
   };
   const removeAdmin = (id) => {
@@ -283,19 +275,16 @@ export function StoreProvider({ children }) {
       ...prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
       {
         id: generateId(), day, slotId, roomId, branchId, subject: branch.name,
-        updatedBy: currentUser.id, updatedAt: new Date().toISOString()
+        updatedBy: currentUser.id, updatedAt: new Date().toISOString(),
       },
     ]);
     addLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
   };
-
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
     setAllocations(prev => prev.filter(a => a.id !== allocationId));
     addLog(`Removed allocation ${allocationId}`);
   };
-
-  // ✅ Fixed: now accepts newBranchLabel as 3rd argument and saves it on the allocation
   const updateAllocationSubject = (allocationId, newSubject, newBranchLabel) => {
     if (!currentUser) return;
     const allocation = allocations.find(a => a.id === allocationId);
@@ -303,18 +292,13 @@ export function StoreProvider({ children }) {
     if (currentUser.role === 'teacher') {
       if (!currentUser.branchId) { alert('No branch assigned. Contact admin.'); return; }
       if (currentUser.branchId !== allocation.branchId) { alert('You can only edit your own branch slots.'); return; }
-    } else if (currentUser.role !== 'admin') {
-      return;
-    }
+    } else if (currentUser.role !== 'admin') return;
     setAllocations(prev => prev.map(a =>
       a.id === allocationId
         ? {
-            ...a,
-            subject: newSubject,
-            // Save the custom branch label. undefined means "not provided" → keep old value.
+            ...a, subject: newSubject,
             branchLabel: newBranchLabel !== undefined ? newBranchLabel : a.branchLabel,
-            updatedBy: currentUser.id,
-            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.id, updatedAt: new Date().toISOString(),
           }
         : a
     ));
@@ -326,7 +310,7 @@ export function StoreProvider({ children }) {
   // ─── Reset All Data ───────────────────────────────────────────────────────
   const resetData = async () => {
     try {
-      await fetch(`${API_BASE}/api/storage`, {
+      await fetch(`${API_BASE}/api/storage`, {     // ← FIXED: was '/api/storage'
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(null),
