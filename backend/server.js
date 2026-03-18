@@ -1,4 +1,4 @@
-require('dotenv').config(); // loads .env automatically for local dev
+require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 const { Pool } = require('pg');
@@ -8,8 +8,7 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Supabase / PostgreSQL Pool ───────────────────────────────────────────────
 if (!process.env.SUPABASE_DB_URL) {
-  console.error('❌  SUPABASE_DB_URL environment variable is not set.');
-  process.exit(1);
+  console.error('❌  SUPABASE_DB_URL is not set.');
 }
 
 const pool = new Pool({
@@ -51,7 +50,10 @@ const INITIAL_DATA = {
 };
 
 // ─── DB Initialisation ─────────────────────────────────────────────────────────
+let dbInitialised = false;
+
 async function initDB() {
+  if (dbInitialised) return;           // Only run once per serverless instance
   const client = await pool.connect();
   try {
     await client.query(`
@@ -82,30 +84,29 @@ async function initDB() {
 
     const { rows } = await client.query('SELECT COUNT(*) FROM users');
     if (parseInt(rows[0].count) === 0) {
-      console.log('🌱  Seeding initial data...');
       await seedInitialData(client);
     }
 
+    // Always ensure root admin exists
     await client.query(`
       INSERT INTO users (id, name, email, role)
       VALUES ('admin-ravi', 'Ravi (Admin)', 'ravi86198701@gmail.com', 'admin')
       ON CONFLICT (id) DO NOTHING
     `);
 
-    console.log('✅  Supabase database ready');
+    dbInitialised = true;
+    console.log('✅  Supabase DB ready');
   } finally {
     client.release();
   }
 }
 
 async function seedInitialData(client) {
-  for (const u of INITIAL_DATA.users) {
+  for (const u of INITIAL_DATA.users)
     await client.query(
-      `INSERT INTO users (id,name,email,role,branch_id,picture)
-       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
+      `INSERT INTO users (id,name,email,role,branch_id,picture) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
       [u.id, u.name, u.email, u.role, u.branchId||null, u.picture||null]
     );
-  }
   for (const b of INITIAL_DATA.branches)
     await client.query('INSERT INTO branches (id,name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [b.id, b.name]);
   for (const r of INITIAL_DATA.rooms)
@@ -123,12 +124,12 @@ async function readData() {
   try {
     const [usersRes, branchesRes, roomsRes, timeSlotsRes,
            allocationsRes, logsRes, notificationsRes, settingsRes] = await Promise.all([
-      client.query('SELECT * FROM users        ORDER BY id'),
-      client.query('SELECT * FROM branches     ORDER BY id'),
-      client.query('SELECT * FROM rooms        ORDER BY id'),
-      client.query('SELECT * FROM time_slots   ORDER BY period, id'),
-      client.query('SELECT * FROM allocations  ORDER BY updated_at DESC'),
-      client.query('SELECT * FROM logs         ORDER BY timestamp DESC LIMIT 500'),
+      client.query('SELECT * FROM users         ORDER BY id'),
+      client.query('SELECT * FROM branches      ORDER BY id'),
+      client.query('SELECT * FROM rooms         ORDER BY id'),
+      client.query('SELECT * FROM time_slots    ORDER BY period, id'),
+      client.query('SELECT * FROM allocations   ORDER BY updated_at DESC'),
+      client.query('SELECT * FROM logs          ORDER BY timestamp DESC LIMIT 500'),
       client.query('SELECT * FROM notifications ORDER BY timestamp DESC LIMIT 200'),
       client.query('SELECT key, value FROM settings'),
     ]);
@@ -136,19 +137,18 @@ async function readData() {
     const settingsObj = {};
     for (const row of settingsRes.rows) settingsObj[row.key] = row.value;
 
-    const users = usersRes.rows.map(u => {
-      const obj = { id: u.id, name: u.name, email: u.email, role: u.role };
-      if (u.branch_id) obj.branchId = u.branch_id;
-      if (u.picture)   obj.picture  = u.picture;
-      return obj;
-    });
-
     return {
-      users,
+      users: usersRes.rows.map(u => {
+        const obj = { id: u.id, name: u.name, email: u.email, role: u.role };
+        if (u.branch_id) obj.branchId = u.branch_id;
+        if (u.picture)   obj.picture  = u.picture;
+        return obj;
+      }),
       branches:  branchesRes.rows.map(b  => ({ id: b.id, name: b.name })),
       rooms:     roomsRes.rows.map(r     => ({ id: r.id, name: r.name })),
       timeSlots: timeSlotsRes.rows.map(ts => ({
-        id: ts.id, startTime: ts.start_time, endTime: ts.end_time, label: ts.label, period: ts.period,
+        id: ts.id, startTime: ts.start_time, endTime: ts.end_time,
+        label: ts.label, period: ts.period,
       })),
       allocations: allocationsRes.rows.map(a => {
         const obj = {
@@ -216,7 +216,8 @@ async function writeData(data) {
       await client.query('DELETE FROM allocations');
       for (const a of data.allocations)
         await client.query(`
-          INSERT INTO allocations (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
+          INSERT INTO allocations
+            (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         `, [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
             a.updatedBy, a.updatedAt||new Date(), a.branchLabel||null]);
@@ -232,9 +233,10 @@ async function writeData(data) {
     if (Array.isArray(data.notifications)) {
       await client.query('DELETE FROM notifications');
       for (const n of data.notifications)
-        await client.query(`
-          INSERT INTO notifications (id,message,type,timestamp,is_read) VALUES ($1,$2,$3,$4,$5)
-        `, [n.id, n.message, n.type, n.timestamp||new Date(), n.isRead??false]);
+        await client.query(
+          `INSERT INTO notifications (id,message,type,timestamp,is_read) VALUES ($1,$2,$3,$4,$5)`,
+          [n.id, n.message, n.type, n.timestamp||new Date(), n.isRead??false]
+        );
     }
 
     if (data.settings && typeof data.settings === 'object') {
@@ -256,10 +258,26 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+// ─── Middleware: init DB before every request ──────────────────────────────────
+// Vercel serverless functions have no persistent boot — we init lazily.
+app.use(async (req, res, next) => {
+  try {
+    await initDB();
+    next();
+  } catch (err) {
+    console.error('DB init error:', err.message);
+    res.status(500).json({ error: 'Database initialisation failed', detail: err.message });
+  }
+});
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
 app.get('/api/storage', async (req, res) => {
   try { res.json(await readData()); }
-  catch (err) { console.error('[GET /api/storage]', err.message); res.status(500).json({ error: 'Failed to read data' }); }
+  catch (err) {
+    console.error('[GET /api/storage]', err.message);
+    res.status(500).json({ error: 'Failed to read data', detail: err.message });
+  }
 });
 
 app.post('/api/storage', async (req, res) => {
@@ -267,7 +285,10 @@ app.post('/api/storage', async (req, res) => {
     const body = req.body;
     await writeData(!body || Object.keys(body).length === 0 ? INITIAL_DATA : body);
     res.json({ success: true });
-  } catch (err) { console.error('[POST /api/storage]', err.message); res.status(500).json({ error: 'Failed to write data' }); }
+  } catch (err) {
+    console.error('[POST /api/storage]', err.message);
+    res.status(500).json({ error: 'Failed to write data', detail: err.message });
+  }
 });
 
 app.post('/api/auth/google', async (req, res) => {
@@ -291,8 +312,10 @@ app.post('/api/auth/google', async (req, res) => {
           await client.query('UPDATE users SET picture=$1 WHERE id=$2', [picture, existing.id]);
         return res.json({
           success: true, role: existing.role,
-          user: { id: existing.id, name: existing.name, email: existing.email,
-                  role: existing.role, branchId: existing.branch_id||undefined, picture },
+          user: {
+            id: existing.id, name: existing.name, email: existing.email,
+            role: existing.role, branchId: existing.branch_id||undefined, picture,
+          },
         });
       }
       return res.json({
@@ -300,16 +323,19 @@ app.post('/api/auth/google', async (req, res) => {
         user: { id: 'student-' + generateId(), name, email, role: 'student', picture },
       });
     } finally { client.release(); }
-  } catch (err) { console.error('[/api/auth/google]', err.message); res.status(401).json({ error: 'Authentication failed.' }); }
+  } catch (err) {
+    console.error('[/api/auth/google]', err.message);
+    res.status(401).json({ error: 'Authentication failed.', detail: err.message });
+  }
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', port: PORT }));
-app.use((req, res) => res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` }));
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-initDB()
-  .then(() => app.listen(PORT, () => {
-    console.log(`✅  Backend running on http://localhost:${PORT}`);
-    console.log(`🗄️   Connected to Supabase PostgreSQL`);
-  }))
-  .catch(err => { console.error('❌  DB init failed:', err.message); process.exit(1); });
+app.use((req, res) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
+});
+
+// ─── Export for Vercel (NO app.listen) ────────────────────────────────────────
+// Vercel calls this file as a serverless function — never use app.listen() here.
+// For local dev, run:  node localServer.js
+module.exports = app;
