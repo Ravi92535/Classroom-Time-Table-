@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { generateId } from './utils.js';
 
 // ─── API Configuration ─────────────────────────────────────────────────────
-// ALL fetch calls (GET and POST) must use this base URL in production
 const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
+
+// How often the public timetable / student page re-fetches fresh data (ms)
+const POLL_INTERVAL = 15000; // 15 seconds
 
 // ─── Days of the week ─────────────────────────────────────────────────────────
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -70,47 +72,64 @@ export function StoreProvider({ children }) {
   const [viewOrientation, setViewOrientation] = useState('horizontal');
   const settings = { viewOrientation };
 
+  // Track whether we're currently saving so polling doesn't overwrite in-flight changes
+  const isSaving = useRef(false);
+
   useEffect(() => {
     setViewOrientation(loadOrientation(currentUser?.id));
   }, [currentUser?.id]);
 
-  // ── Load from backend on mount ────────────────────────────────────────────
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/storage`);
-        if (!res.ok) throw new Error('Failed to fetch');
-        const parsed = await res.json();
-        if (parsed) {
-          setUsers(parsed.users               || INITIAL_USERS);
-          setBranches(parsed.branches         || INITIAL_BRANCHES);
-          setRooms(parsed.rooms               || INITIAL_ROOMS);
-          setTimeSlots(parsed.timeSlots       || INITIAL_SLOTS);
-          setAllocations(parsed.allocations   || []);
-          setLogs(parsed.logs                 || []);
-          setNotifications(parsed.notifications || []);
-        }
-      } catch (err) {
-        console.error('[Store] Failed to load:', err);
-      } finally {
-        setIsLoaded(true);
+  // ── Fetch helper (used by initial load + polling) ─────────────────────────
+  const fetchData = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/storage`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const parsed = await res.json();
+      if (parsed) {
+        setUsers(parsed.users               || INITIAL_USERS);
+        setBranches(parsed.branches         || INITIAL_BRANCHES);
+        setRooms(parsed.rooms               || INITIAL_ROOMS);
+        setTimeSlots(parsed.timeSlots       || INITIAL_SLOTS);
+        setAllocations(parsed.allocations   || []);
+        setLogs(parsed.logs                 || []);
+        setNotifications(parsed.notifications || []);
       }
-    };
-    loadData();
+    } catch (err) {
+      console.error('[Store] Failed to load:', err);
+    }
+  };
+
+  // ── Initial load on mount ────────────────────────────────────────────────
+  useEffect(() => {
+    fetchData().finally(() => setIsLoaded(true));
+  }, []);
+
+  // ── Polling: re-fetch every 15 seconds to keep timetable fresh ───────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Skip poll if we're in the middle of saving to avoid overwriting
+      if (!isSaving.current) {
+        fetchData();
+      }
+    }, POLL_INTERVAL);
+    return () => clearInterval(interval);
   }, []);
 
   // ── Auto-save to backend (debounced 500 ms) ───────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
+    isSaving.current = true;
     const timer = setTimeout(() => {
-      fetch(`${API_BASE}/api/storage`, {           // ← FIXED: was '/api/storage'
+      fetch(`${API_BASE}/api/storage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           users, branches, rooms, timeSlots,
           allocations, logs, settings: {}, notifications,
         }),
-      }).catch(err => console.error('[Store] Failed to save:', err));
+      })
+        .catch(err => console.error('[Store] Failed to save:', err))
+        .finally(() => { isSaving.current = false; });
     }, 500);
     return () => clearTimeout(timer);
   }, [users, branches, rooms, timeSlots, allocations, logs, notifications, isLoaded]);
@@ -129,7 +148,7 @@ export function StoreProvider({ children }) {
   // ─── Google Login ─────────────────────────────────────────────────────────
   const loginWithGoogle = async (idToken) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google`, {  // ← FIXED: was '/api/auth/google'
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
@@ -310,7 +329,7 @@ export function StoreProvider({ children }) {
   // ─── Reset All Data ───────────────────────────────────────────────────────
   const resetData = async () => {
     try {
-      await fetch(`${API_BASE}/api/storage`, {     // ← FIXED: was '/api/storage'
+      await fetch(`${API_BASE}/api/storage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(null),
