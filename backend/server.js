@@ -1,17 +1,30 @@
+require('dotenv').config(); // loads .env automatically for local dev
 const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+const cors    = require('cors');
+const { Pool } = require('pg');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
-const DATA_FILE = path.join(__dirname, 'data.json');
+
+// ─── Supabase / PostgreSQL Pool ───────────────────────────────────────────────
+if (!process.env.SUPABASE_DB_URL) {
+  console.error('❌  SUPABASE_DB_URL environment variable is not set.');
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_DB_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '5mb' }));
 
-// ─── Initial / Default Data ────────────────────────────────────────────────────
+// ─── Seed / Default Data ───────────────────────────────────────────────────────
 const INITIAL_DATA = {
   users: [
     { id: 'admin-ravi', name: 'Ravi (Admin)', email: 'ravi86198701@gmail.com', role: 'admin' },
@@ -37,45 +50,205 @@ const INITIAL_DATA = {
   notifications: [],
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-function readData() {
+// ─── DB Initialisation ─────────────────────────────────────────────────────────
+async function initDB() {
+  const client = await pool.connect();
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_DATA, null, 2));
-      return INITIAL_DATA;
-    }
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE NOT NULL,
+        role TEXT NOT NULL DEFAULT 'student', branch_id TEXT, picture TEXT
+      );
+      CREATE TABLE IF NOT EXISTS branches (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS rooms    (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS time_slots (
+        id TEXT PRIMARY KEY, start_time TEXT, end_time TEXT, label TEXT, period INT
+      );
+      CREATE TABLE IF NOT EXISTS allocations (
+        id TEXT PRIMARY KEY, day TEXT, slot_id TEXT, room_id TEXT,
+        branch_id TEXT, subject TEXT, updated_by TEXT,
+        updated_at TIMESTAMPTZ, branch_label TEXT
+      );
+      CREATE TABLE IF NOT EXISTS logs (
+        id TEXT PRIMARY KEY, timestamp TIMESTAMPTZ,
+        message TEXT, user_id TEXT, user_name TEXT
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY, message TEXT, type TEXT,
+        timestamp TIMESTAMPTZ, is_read BOOLEAN DEFAULT false
+      );
+      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB);
+    `);
 
-    // Ensure the root admin is always present
-    const rootAdmin = { id: 'admin-ravi', name: 'Ravi (Admin)', email: 'ravi86198701@gmail.com', role: 'admin' };
-    const users = parsed.users ?? INITIAL_DATA.users;
-    if (!users.some(u => u.email.toLowerCase() === 'ravi86198701@gmail.com')) {
-      users.unshift(rootAdmin);
+    const { rows } = await client.query('SELECT COUNT(*) FROM users');
+    if (parseInt(rows[0].count) === 0) {
+      console.log('🌱  Seeding initial data...');
+      await seedInitialData(client);
     }
 
-    return {
-      users,
-      branches: parsed.branches ?? INITIAL_DATA.branches,
-      rooms: parsed.rooms ?? INITIAL_DATA.rooms,
-      timeSlots: parsed.timeSlots ?? INITIAL_DATA.timeSlots,
-      allocations: parsed.allocations ?? [],
-      logs: parsed.logs ?? [],
-      settings: parsed.settings ?? {},
-      notifications: parsed.notifications ?? [],
-    };
-  } catch (err) {
-    console.error('[readData] Error:', err.message);
-    return INITIAL_DATA;
+    await client.query(`
+      INSERT INTO users (id, name, email, role)
+      VALUES ('admin-ravi', 'Ravi (Admin)', 'ravi86198701@gmail.com', 'admin')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    console.log('✅  Supabase database ready');
+  } finally {
+    client.release();
   }
 }
 
-function writeData(data) {
+async function seedInitialData(client) {
+  for (const u of INITIAL_DATA.users) {
+    await client.query(
+      `INSERT INTO users (id,name,email,role,branch_id,picture)
+       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
+      [u.id, u.name, u.email, u.role, u.branchId||null, u.picture||null]
+    );
+  }
+  for (const b of INITIAL_DATA.branches)
+    await client.query('INSERT INTO branches (id,name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [b.id, b.name]);
+  for (const r of INITIAL_DATA.rooms)
+    await client.query('INSERT INTO rooms (id,name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [r.id, r.name]);
+  for (const ts of INITIAL_DATA.timeSlots)
+    await client.query(
+      `INSERT INTO time_slots (id,start_time,end_time,label,period) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [ts.id, ts.startTime, ts.endTime, ts.label, ts.period]
+    );
+}
+
+// ─── Read All ─────────────────────────────────────────────────────────────────
+async function readData() {
+  const client = await pool.connect();
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    const [usersRes, branchesRes, roomsRes, timeSlotsRes,
+           allocationsRes, logsRes, notificationsRes, settingsRes] = await Promise.all([
+      client.query('SELECT * FROM users        ORDER BY id'),
+      client.query('SELECT * FROM branches     ORDER BY id'),
+      client.query('SELECT * FROM rooms        ORDER BY id'),
+      client.query('SELECT * FROM time_slots   ORDER BY period, id'),
+      client.query('SELECT * FROM allocations  ORDER BY updated_at DESC'),
+      client.query('SELECT * FROM logs         ORDER BY timestamp DESC LIMIT 500'),
+      client.query('SELECT * FROM notifications ORDER BY timestamp DESC LIMIT 200'),
+      client.query('SELECT key, value FROM settings'),
+    ]);
+
+    const settingsObj = {};
+    for (const row of settingsRes.rows) settingsObj[row.key] = row.value;
+
+    const users = usersRes.rows.map(u => {
+      const obj = { id: u.id, name: u.name, email: u.email, role: u.role };
+      if (u.branch_id) obj.branchId = u.branch_id;
+      if (u.picture)   obj.picture  = u.picture;
+      return obj;
+    });
+
+    return {
+      users,
+      branches:  branchesRes.rows.map(b  => ({ id: b.id, name: b.name })),
+      rooms:     roomsRes.rows.map(r     => ({ id: r.id, name: r.name })),
+      timeSlots: timeSlotsRes.rows.map(ts => ({
+        id: ts.id, startTime: ts.start_time, endTime: ts.end_time, label: ts.label, period: ts.period,
+      })),
+      allocations: allocationsRes.rows.map(a => {
+        const obj = {
+          id: a.id, day: a.day, slotId: a.slot_id, roomId: a.room_id,
+          branchId: a.branch_id, subject: a.subject,
+          updatedBy: a.updated_by, updatedAt: a.updated_at,
+        };
+        if (a.branch_label) obj.branchLabel = a.branch_label;
+        return obj;
+      }),
+      logs: logsRes.rows.map(l => ({
+        id: l.id, timestamp: l.timestamp, message: l.message,
+        userId: l.user_id, userName: l.user_name,
+      })),
+      notifications: notificationsRes.rows.map(n => ({
+        id: n.id, message: n.message, type: n.type,
+        timestamp: n.timestamp, isRead: n.is_read,
+      })),
+      settings: settingsObj,
+    };
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Write All ────────────────────────────────────────────────────────────────
+async function writeData(data) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (Array.isArray(data.users) && data.users.length > 0) {
+      await client.query(`DELETE FROM users WHERE id != ALL($1::text[])`, [data.users.map(u => u.id)]);
+      for (const u of data.users)
+        await client.query(`
+          INSERT INTO users (id,name,email,role,branch_id,picture) VALUES ($1,$2,$3,$4,$5,$6)
+          ON CONFLICT (id) DO UPDATE SET
+            name=EXCLUDED.name, email=EXCLUDED.email, role=EXCLUDED.role,
+            branch_id=EXCLUDED.branch_id, picture=EXCLUDED.picture
+        `, [u.id, u.name, u.email, u.role, u.branchId||null, u.picture||null]);
+    }
+
+    if (Array.isArray(data.branches)) {
+      await client.query('DELETE FROM branches');
+      for (const b of data.branches)
+        await client.query('INSERT INTO branches (id,name) VALUES ($1,$2)', [b.id, b.name]);
+    }
+
+    if (Array.isArray(data.rooms)) {
+      await client.query('DELETE FROM rooms');
+      for (const r of data.rooms)
+        await client.query('INSERT INTO rooms (id,name) VALUES ($1,$2)', [r.id, r.name]);
+    }
+
+    if (Array.isArray(data.timeSlots)) {
+      await client.query('DELETE FROM time_slots');
+      for (const ts of data.timeSlots)
+        await client.query(
+          `INSERT INTO time_slots (id,start_time,end_time,label,period) VALUES ($1,$2,$3,$4,$5)`,
+          [ts.id, ts.startTime, ts.endTime, ts.label, ts.period]
+        );
+    }
+
+    if (Array.isArray(data.allocations)) {
+      await client.query('DELETE FROM allocations');
+      for (const a of data.allocations)
+        await client.query(`
+          INSERT INTO allocations (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        `, [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
+            a.updatedBy, a.updatedAt||new Date(), a.branchLabel||null]);
+    }
+
+    if (Array.isArray(data.logs))
+      for (const l of data.logs)
+        await client.query(`
+          INSERT INTO logs (id,timestamp,message,user_id,user_name)
+          VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING
+        `, [l.id, l.timestamp||new Date(), l.message, l.userId, l.userName]);
+
+    if (Array.isArray(data.notifications)) {
+      await client.query('DELETE FROM notifications');
+      for (const n of data.notifications)
+        await client.query(`
+          INSERT INTO notifications (id,message,type,timestamp,is_read) VALUES ($1,$2,$3,$4,$5)
+        `, [n.id, n.message, n.type, n.timestamp||new Date(), n.isRead??false]);
+    }
+
+    if (data.settings && typeof data.settings === 'object') {
+      await client.query('DELETE FROM settings');
+      for (const [key, value] of Object.entries(data.settings))
+        await client.query('INSERT INTO settings (key,value) VALUES ($1,$2)', [key, JSON.stringify(value)]);
+    }
+
+    await client.query('COMMIT');
   } catch (err) {
-    console.error('[writeData] Error:', err.message);
+    await client.query('ROLLBACK');
     throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -83,102 +256,60 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ─── Routes ────────────────────────────────────────────────────────────────────
-
-// GET /api/storage  →  return current data
-app.get('/api/storage', (req, res) => {
-  try {
-    res.json(readData());
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to read data' });
-  }
+// ─── Routes ───────────────────────────────────────────────────────────────────
+app.get('/api/storage', async (req, res) => {
+  try { res.json(await readData()); }
+  catch (err) { console.error('[GET /api/storage]', err.message); res.status(500).json({ error: 'Failed to read data' }); }
 });
 
-// POST /api/storage  →  save data (body=null means full reset)
-app.post('/api/storage', (req, res) => {
+app.post('/api/storage', async (req, res) => {
   try {
     const body = req.body;
-    if (body === null || body === undefined || Object.keys(body).length === 0) {
-      writeData(INITIAL_DATA);
-    } else {
-      writeData(body);
-    }
+    await writeData(!body || Object.keys(body).length === 0 ? INITIAL_DATA : body);
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to write data' });
-  }
+  } catch (err) { console.error('[POST /api/storage]', err.message); res.status(500).json({ error: 'Failed to write data' }); }
 });
 
-// POST /api/auth/google  →  verify Google access token and return role
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { idToken } = req.body; // idToken here is actually the access_token from useGoogleLogin
+    const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: 'Token required' });
 
-    // Verify the access token with Google's userinfo endpoint
     const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${idToken}` },
     });
+    if (!googleRes.ok) return res.status(401).json({ error: 'Invalid or expired Google token.' });
 
-    if (!googleRes.ok) {
-      return res.status(401).json({ error: 'Invalid or expired Google token.' });
-    }
-
-    const payload = await googleRes.json();
-    const email = payload.email.toLowerCase();
-    const name = payload.name;
-    const picture = payload.picture;
-
-    // Look up role from data.json
-    const data = readData();
-    const existingUser = data.users.find(u => u.email.toLowerCase() === email);
-
-    if (existingUser) {
-      // Update picture from Google if not set
-      if (!existingUser.picture) {
-        existingUser.picture = picture;
-        if (!existingUser.name || existingUser.name === existingUser.email.split('@')[0]) {
-          existingUser.name = name;
-        }
-        writeData(data);
+    const { email: rawEmail, name, picture } = await googleRes.json();
+    const email  = rawEmail.toLowerCase();
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query('SELECT * FROM users WHERE LOWER(email) = $1', [email]);
+      const existing = rows[0];
+      if (existing) {
+        if (!existing.picture)
+          await client.query('UPDATE users SET picture=$1 WHERE id=$2', [picture, existing.id]);
+        return res.json({
+          success: true, role: existing.role,
+          user: { id: existing.id, name: existing.name, email: existing.email,
+                  role: existing.role, branchId: existing.branch_id||undefined, picture },
+        });
       }
       return res.json({
-        success: true,
-        role: existingUser.role,
-        user: { ...existingUser, picture },
+        success: true, role: 'student',
+        user: { id: 'student-' + generateId(), name, email, role: 'student', picture },
       });
-    }
-
-    // Not found → give student role (transient, not persisted)
-    return res.json({
-      success: true,
-      role: 'student',
-      user: {
-        id: 'student-' + generateId(),
-        name,
-        email,
-        role: 'student',
-        picture,
-      },
-    });
-  } catch (err) {
-    console.error('[/api/auth/google] Error:', err.message);
-    res.status(401).json({ error: 'Authentication failed.' });
-  }
+    } finally { client.release(); }
+  } catch (err) { console.error('[/api/auth/google]', err.message); res.status(401).json({ error: 'Authentication failed.' }); }
 });
 
-// Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', port: PORT }));
+app.use((req, res) => res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` }));
 
-// 404 catch-all
-app.use((req, res) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
-});
-
-// ─── Start Server ──────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`✅  Backend running on http://localhost:${PORT}`);
-  console.log(`📂  Data stored in: ${DATA_FILE}`);
-  // Ensure initial data file exists with root admin
-  readData();
-});
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+initDB()
+  .then(() => app.listen(PORT, () => {
+    console.log(`✅  Backend running on http://localhost:${PORT}`);
+    console.log(`🗄️   Connected to Supabase PostgreSQL`);
+  }))
+  .catch(err => { console.error('❌  DB init failed:', err.message); process.exit(1); });
