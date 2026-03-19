@@ -6,8 +6,9 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL = 20000; // 20 s — viewers get fresh data
-const SAVE_DEBOUNCE = 1000;  // 1 s  — wait for rapid clicks to settle
+const POLL_INTERVAL = 5000; // 5 s — viewers get fresh data faster
+const SAVE_DEBOUNCE = 250;  // 0.25 s — update remote store quickly for admin changes
+const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -84,6 +85,18 @@ export function StoreProvider({ children }) {
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => { fetchData().finally(() => setIsLoaded(true)); }, []);
 
+  // ── Cross-tab sync via localStorage updates (instant for other tabs) ───
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key !== STORAGE_SYNC_KEY) return;
+      if (pendingSave.current || isSavingNow.current) return;
+      fetchData().catch(e => console.error('[Store] fetch on storage event:', e.message));
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [fetchData]);
+
   // ── Polling — SKIPS when admin has unsaved changes ────────────────────────
   useEffect(() => {
     const id = setInterval(() => {
@@ -109,11 +122,16 @@ export function StoreProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(snapshot),
       })
-        .then(() => { pendingSave.current = false; })
+        .then(() => {
+          pendingSave.current = false;
+          // Notify other tabs they should refresh, and refresh this tab too.
+          try { localStorage.setItem(STORAGE_SYNC_KEY, Date.now().toString()); } catch (err) { /* ignore */ }
+          fetchData().catch(e => console.error('[Store] fetch after save:', e.message));
+        })
         .catch(e => console.error('[Store] save:', e.message))
         .finally(() => { isSavingNow.current = false; });
     }, SAVE_DEBOUNCE);
-  }, []); // no dependencies — uses ref, never stale
+  }, [fetchData]);
 
   // ─── Tiny log builder (pure) ──────────────────────────────────────────────
   const buildLog = (msg) => ({

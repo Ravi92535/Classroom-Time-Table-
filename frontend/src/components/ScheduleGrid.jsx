@@ -11,6 +11,7 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
 
   const [isModalOpen,  setIsModalOpen]  = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [quickBranchId, setQuickBranchId] = useState('');
 
   const getCellAllocation = (day, slotId) =>
     allocations.find(
@@ -27,13 +28,18 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
   const getBranchName = (branchId) =>
     branches.find(b => b.id === branchId)?.name || branchId;
 
-  const handleCellClick = (day, slotId, allocation) => {
+  const handleCellClick = (event, day, slotId, allocation) => {
     if (currentUser?.role === 'admin') {
       if (allocation) {
         if (window.confirm(`Remove ${getBranchName(allocation.branchId)} from this slot?`)) {
           removeAllocation(allocation.id);
         }
       } else if (roomId) {
+        if (quickBranchId) {
+          setAllocation(day, slotId, roomId, quickBranchId);
+          return;
+        }
+
         setSelectedCell({ day, slotId });
         setIsModalOpen(true);
       }
@@ -119,7 +125,7 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
                     !alloc ? 'bg-gray-50 text-gray-400' : 'bg-white',
                     clickable ? 'cursor-pointer hover:bg-blue-50 active:bg-blue-100' : ''
                   )}
-                  onClick={() => handleCellClick(day, slot.id, alloc)}
+                  onClick={(e) => handleCellClick(e, day, slot.id, alloc)}
                 >
                   {renderCell(alloc, editable)}
                 </td>
@@ -166,7 +172,7 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
                     !alloc ? 'bg-gray-50 text-gray-400' : 'bg-white',
                     clickable ? 'cursor-pointer hover:bg-blue-50 active:bg-blue-100' : ''
                   )}
-                  onClick={() => handleCellClick(day, slot.id, alloc)}
+                  onClick={(e) => handleCellClick(e, day, slot.id, alloc)}
                 >
                   {renderCell(alloc, editable)}
                 </td>
@@ -180,6 +186,29 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
 
   return (
     <>
+      {currentUser?.role === 'admin' && (
+        <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-2 flex flex-wrap items-center gap-2">
+          <label className="text-xs font-medium text-gray-600">Quick Allocate</label>
+          <select
+            className="p-1 border border-gray-300 rounded text-xs"
+            value={quickBranchId}
+            onChange={e => setQuickBranchId(e.target.value)}
+          >
+            <option value="">Select branch (manual modal fallback)</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          {quickBranchId && (
+            <button
+              onClick={() => setQuickBranchId('')}
+              className="text-xs px-2 py-1 bg-red-100 border border-red-200 rounded text-red-600"
+            >Clear branch</button>
+          )}
+          <span className="text-xs text-gray-500">
+            {quickBranchId ? `Using ${branches.find(b => b.id === quickBranchId)?.name} for clicks` : 'No quick branch selected'}
+          </span>
+        </div>
+      )}
+
       <p className="sm:hidden text-[10px] text-gray-400 mb-1 text-right">← scroll to see all days →</p>
 
       <div className="overflow-x-auto -mx-1">
