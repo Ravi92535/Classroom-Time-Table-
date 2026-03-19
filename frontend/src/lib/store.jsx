@@ -9,6 +9,7 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
 const POLL_INTERVAL = 5000; // 5 s — viewers get fresh data faster
 const SAVE_DEBOUNCE = 250;  // 0.25 s — update remote store quickly for admin changes
 const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
+const BROADCAST_CHANNEL = 'room_system_sync_channel';
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -85,7 +86,7 @@ export function StoreProvider({ children }) {
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => { fetchData().finally(() => setIsLoaded(true)); }, []);
 
-  // ── Cross-tab sync via localStorage updates (instant for other tabs) ───
+  // ── Cross-tab sync via localStorage + BroadcastChannel (instant) ─────
   useEffect(() => {
     const onStorage = (event) => {
       if (event.key !== STORAGE_SYNC_KEY) return;
@@ -93,8 +94,23 @@ export function StoreProvider({ children }) {
       fetchData().catch(e => console.error('[Store] fetch on storage event:', e.message));
     };
 
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BROADCAST_CHANNEL) : null;
+    const onBroadcast = (messageEvent) => {
+      if (messageEvent.data !== 'sync') return;
+      if (pendingSave.current || isSavingNow.current) return;
+      fetchData().catch(e => console.error('[Store] fetch on broadcast event:', e.message));
+    };
+
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    if (channel) channel.addEventListener('message', onBroadcast);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (channel) {
+        channel.removeEventListener('message', onBroadcast);
+        channel.close();
+      }
+    };
   }, [fetchData]);
 
   // ── Polling — SKIPS when admin has unsaved changes ────────────────────────
@@ -126,6 +142,13 @@ export function StoreProvider({ children }) {
           pendingSave.current = false;
           // Notify other tabs they should refresh, and refresh this tab too.
           try { localStorage.setItem(STORAGE_SYNC_KEY, Date.now().toString()); } catch (err) { /* ignore */ }
+          if (typeof BroadcastChannel !== 'undefined') {
+            try {
+              const bc = new BroadcastChannel(BROADCAST_CHANNEL);
+              bc.postMessage('sync');
+              bc.close();
+            } catch (err) { /* ignore it if broken in restrictive browsers */ }
+          }
           fetchData().catch(e => console.error('[Store] fetch after save:', e.message));
         })
         .catch(e => console.error('[Store] save:', e.message))
