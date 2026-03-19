@@ -60,6 +60,7 @@ export function StoreProvider({ children }) {
   const pendingSave  = useRef(false);
   const isSavingNow  = useRef(false);
   const saveTimer    = useRef(null);
+  const lastNotifMsg = useRef(''); // Track last notification message to prevent duplicates
 
   useEffect(() => { setViewOrientation(loadOrientation(currentUser?.id)); }, [currentUser?.id]);
 
@@ -134,7 +135,8 @@ export function StoreProvider({ children }) {
       // Merge always-current ref with the overrides from this mutation
       // ✅ Exclude notifications - keep them in-memory only
       const { notifications: _ignore, ...dataToSave } = stateRef.current;
-      const snapshot = { ...dataToSave, ...overrides, settings: {} };
+      const { notifications: _overrideNotif, ...cleanOverrides } = overrides;
+      const snapshot = { ...dataToSave, ...cleanOverrides, settings: {} };
       isSavingNow.current = true;
       fetch(`${API_BASE}/api/storage`, {
         method:  'POST',
@@ -186,8 +188,13 @@ export function StoreProvider({ children }) {
   };
 
   // ─── Notifications ────────────────────────────────────────────────────────
-  const addNotification = (message, type = 'info') =>
+  const addNotification = (message, type = 'info') => {
+    // Prevent duplicate notifications within the same second
+    if (lastNotifMsg.current === message) return;
+    lastNotifMsg.current = message;
+    setTimeout(() => { lastNotifMsg.current = ''; }, 1000);
     setNotifications(prev => [{ id: generateId(), message, type, timestamp: new Date().toISOString(), isRead: false }, ...prev]);
+  };
   const clearNotifications = () => setNotifications([]);
 
   // ─── Branch CRUD ──────────────────────────────────────────────────────────
@@ -333,7 +340,8 @@ export function StoreProvider({ children }) {
       ...stateRef.current.notifications,
     ];
     setAllocations(newAllocs); setLogs(newLogs); setNotifications(newNotifs);
-    scheduleSave({ allocations: newAllocs, logs: newLogs, notifications: newNotifs });
+    // ✅ Don't save notifications - keep them in-memory only
+    scheduleSave({ allocations: newAllocs, logs: newLogs });
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
