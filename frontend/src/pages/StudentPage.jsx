@@ -4,7 +4,7 @@ import ScheduleGrid from '../components/ScheduleGrid.jsx';
 import { useStore } from '../lib/store.jsx';
 
 export default function StudentPage() {
-  const { currentUser, rooms } = useStore();
+  const { currentUser, rooms, isLoaded } = useStore();
   const navigate = useNavigate();
 
   if (!currentUser) {
@@ -28,7 +28,11 @@ export default function StudentPage() {
           </p>
         </div>
 
-        {rooms.length === 0 ? (
+        {!isLoaded ? (
+          <div className="py-16 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
+            Loading room data...
+          </div>
+        ) : rooms.length === 0 ? (
           <div className="py-16 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
             No rooms have been configured yet.
           </div>

@@ -32,7 +32,7 @@ export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject,
           onChange={(e) => setSubject(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          placeholder="e.g. CS By Mukesh Sir"
+          placeholder="e.g. DBMS"
           autoFocus
         />
 
@@ -46,7 +46,7 @@ export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject,
           onChange={(e) => setBranchLabel(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           className="w-full p-3 border border-gray-300 rounded-lg mb-5 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          placeholder="e.g. CS"
+          placeholder="e.g. Prof Lov Kumar"
         />
 
         <div className="flex gap-3">

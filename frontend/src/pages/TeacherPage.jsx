@@ -6,7 +6,7 @@ import EditSlotModal from '../components/EditSlotModal.jsx';
 import { useStore } from '../lib/store.jsx';
 
 export default function TeacherPage() {
-  const { currentUser, updateAllocationSubject, branches, rooms } = useStore();
+  const { currentUser, updateAllocationSubject, branches, rooms, isLoaded } = useStore();
   const navigate = useNavigate();
 
   const [isModalOpen,        setIsModalOpen]        = useState(false);
@@ -64,7 +64,11 @@ export default function TeacherPage() {
           </p>
         </div>
 
-        {rooms.length === 0 ? (
+        {!isLoaded ? (
+          <div className="py-16 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
+            Loading room data...
+          </div>
+        ) : rooms.length === 0 ? (
           <div className="py-16 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
             No rooms have been configured yet.
           </div>

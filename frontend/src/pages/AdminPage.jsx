@@ -16,6 +16,7 @@ export default function AdminPage() {
     addAdmin, removeAdmin,
     settings, updateSettings,
     resetData,
+    isLoaded,
   } = useStore();
 
   const [newBranch, setNewBranch] = useState('');
@@ -27,8 +28,15 @@ export default function AdminPage() {
   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
 
   useEffect(() => {
-    if (rooms.length > 0 && !selectedRoomId) setSelectedRoomId(rooms[0].id);
-  }, [rooms, selectedRoomId]);
+    // Reset selectedRoomId if the currently selected room was deleted
+    if (selectedRoomId && !rooms.some(r => r.id === selectedRoomId)) {
+      setSelectedRoomId(rooms.length > 0 ? rooms[0].id : '');
+    }
+    // Set initial room if none selected
+    if (rooms.length > 0 && !selectedRoomId) {
+      setSelectedRoomId(rooms[0].id);
+    }
+  }, [rooms]);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -278,7 +286,11 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {selectedRoomId ? (
+          {!isLoaded ? (
+            <div className="py-16 text-center text-gray-500 border-2 border-dashed rounded-xl">
+              Loading room data...
+            </div>
+          ) : selectedRoomId ? (
             <ScheduleGrid roomId={selectedRoomId} />
           ) : (
             <div className="py-16 text-center text-gray-500 border-2 border-dashed rounded-xl">

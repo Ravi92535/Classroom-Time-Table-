@@ -7,7 +7,7 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   : 'http://localhost:3001';
 
 const POLL_INTERVAL = 5000; // 5 s — viewers get fresh data faster
-const SAVE_DEBOUNCE = 250;  // 0.25 s — update remote store quickly for admin changes
+const SAVE_DEBOUNCE = 150;  // 0.15 s — faster response for admin changes while still batching
 const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
 const BROADCAST_CHANNEL = 'room_system_sync_channel';
 
@@ -37,10 +37,10 @@ const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
   const [currentUser,   setCurrentUser]   = useState(() => { try { const s = localStorage.getItem('room_system_user'); return s ? JSON.parse(s) : null; } catch { return null; } });
-  const [users,         setUsers]         = useState(INITIAL_USERS);
-  const [branches,      setBranches]      = useState(INITIAL_BRANCHES);
-  const [rooms,         setRooms]         = useState(INITIAL_ROOMS);
-  const [timeSlots,     setTimeSlots]     = useState(INITIAL_SLOTS);
+  const [users,         setUsers]         = useState([]);
+  const [branches,      setBranches]      = useState([]);
+  const [rooms,         setRooms]         = useState([]);
+  const [timeSlots,     setTimeSlots]     = useState([]);
   const [allocations,   setAllocations]   = useState([]);
   const [logs,          setLogs]          = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -346,7 +346,7 @@ export function StoreProvider({ children }) {
 
   return (
     <StoreContext.Provider value={{
-      currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications,
+      currentUser, users, branches, rooms, timeSlots, allocations, logs, settings, notifications, isLoaded,
       loginWithGoogle, logout,
       addBranch, removeBranch, addRoom, removeRoom, addTimeSlot, removeTimeSlot,
       addTeacher, removeTeacher, addAdmin, removeAdmin, updateSettings,

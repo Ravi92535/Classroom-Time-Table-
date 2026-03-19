@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar.jsx';
 import { useStore } from '../lib/store.jsx';
 
 export default function TimetablePage() {
-  const { rooms, settings, updateSettings, currentUser } = useStore();
+  const { rooms, settings, updateSettings, currentUser, isLoaded } = useStore();
   const navigate = useNavigate();
 
   return (
@@ -38,7 +38,11 @@ export default function TimetablePage() {
           </button>
         </div>
 
-        {rooms.length === 0 ? (
+        {!isLoaded ? (
+          <div className="py-20 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
+            Loading room data...
+          </div>
+        ) : rooms.length === 0 ? (
           <div className="py-20 text-center text-gray-500 bg-white rounded-xl border border-gray-100 shadow-sm">
             No rooms have been configured yet.
           </div>
