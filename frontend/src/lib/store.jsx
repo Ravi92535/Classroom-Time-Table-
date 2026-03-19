@@ -6,8 +6,8 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL = 2000; // 2 s — faster updates for other roles/tabs
-const SAVE_DEBOUNCE = 150;  // 0.15 s — faster response for admin changes while still batching
+const POLL_INTERVAL = 1000; // 1 s — faster updates for other roles/tabs (was 2000ms)
+const SAVE_DEBOUNCE = 100;  // 0.1 s — even faster response for admin changes (was 150ms)
 const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
 const BROADCAST_CHANNEL = 'room_system_sync_channel';
 
@@ -305,10 +305,6 @@ export function StoreProvider({ children }) {
   // ─── Allocation CRUD ──────────────────────────────────────────────────────
   const setAllocation = (day, slotId, roomId, branchId) => {
     if (currentUser?.role !== 'admin') return;
-    if (!day || !slotId || !roomId || !branchId) {
-      console.error('[Store] setAllocation: missing required parameters', { day, slotId, roomId, branchId });
-      return;
-    }
     const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
 
