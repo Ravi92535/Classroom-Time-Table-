@@ -192,85 +192,6 @@ async function readData() {
   }
 }
 
-// ─── Full Write (only used for RESET) ─────────────────────────────────────────
-async function writeData(data) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    if (Array.isArray(data.users) && data.users.length > 0) {
-      await client.query(`DELETE FROM users WHERE id != ALL($1::text[])`, [data.users.map(u => u.id)]);
-      for (const u of data.users)
-        await client.query(`
-          INSERT INTO users (id,name,email,role,branch_id,picture) VALUES ($1,$2,$3,$4,$5,$6)
-          ON CONFLICT (id) DO UPDATE SET
-            name=EXCLUDED.name, email=EXCLUDED.email, role=EXCLUDED.role,
-            branch_id=EXCLUDED.branch_id, picture=EXCLUDED.picture
-        `, [u.id, u.name, u.email, u.role, u.branchId || null, u.picture || null]);
-    }
-
-    if (Array.isArray(data.branches)) {
-      await client.query('DELETE FROM branches');
-      for (const b of data.branches)
-        await client.query('INSERT INTO branches (id,name) VALUES ($1,$2)', [b.id, b.name]);
-    }
-
-    if (Array.isArray(data.rooms)) {
-      await client.query('DELETE FROM rooms');
-      for (const r of data.rooms)
-        await client.query('INSERT INTO rooms (id,name) VALUES ($1,$2)', [r.id, r.name]);
-    }
-
-    if (Array.isArray(data.timeSlots)) {
-      await client.query('DELETE FROM time_slots');
-      for (const ts of data.timeSlots)
-        await client.query(
-          `INSERT INTO time_slots (id,start_time,end_time,label,period) VALUES ($1,$2,$3,$4,$5)`,
-          [ts.id, ts.startTime, ts.endTime, ts.label, ts.period]
-        );
-    }
-
-    if (Array.isArray(data.allocations)) {
-      await client.query('DELETE FROM allocations');
-      for (const a of data.allocations)
-        await client.query(`
-          INSERT INTO allocations (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-        `, [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
-            a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]);
-    }
-
-    if (Array.isArray(data.logs))
-      for (const l of data.logs)
-        await client.query(`
-          INSERT INTO logs (id,timestamp,message,user_id,user_name)
-          VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING
-        `, [l.id, l.timestamp || new Date(), l.message, l.userId, l.userName]);
-
-    if (Array.isArray(data.notifications)) {
-      await client.query('DELETE FROM notifications');
-      for (const n of data.notifications)
-        await client.query(
-          `INSERT INTO notifications (id,message,type,timestamp,is_read) VALUES ($1,$2,$3,$4,$5)`,
-          [n.id, n.message, n.type, n.timestamp || new Date(), n.isRead ?? false]
-        );
-    }
-
-    if (data.settings && typeof data.settings === 'object') {
-      await client.query('DELETE FROM settings');
-      for (const [key, value] of Object.entries(data.settings))
-        await client.query('INSERT INTO settings (key,value) VALUES ($1,$2)', [key, JSON.stringify(value)]);
-    }
-
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -290,16 +211,59 @@ app.get('/api/storage', async (req, res) => {
   }
 });
 
-// Full write — only used for RESET, not for normal updates
-app.post('/api/storage', async (req, res) => {
+// ─── Fast Reset ───────────────────────────────────────────────────────────────
+// TRUNCATE wipes every table in ONE statement — no row-by-row deletes, no loops.
+// Then re-seeds default data in a single batch transaction.
+app.post('/api/reset', async (req, res) => {
   try {
     await ensureDB();
-    const body = req.body;
-    await writeData(!body || Object.keys(body).length === 0 ? INITIAL_DATA : body);
-    res.json({ success: true });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Wipe every table atomically in one shot
+      await client.query(`
+        TRUNCATE TABLE
+          allocations, logs, notifications, settings,
+          time_slots, rooms, branches, users
+        RESTART IDENTITY CASCADE
+      `);
+
+      // Re-seed all defaults in batch INSERTs (one round-trip each)
+      await client.query(`
+        INSERT INTO users (id, name, email, role) VALUES
+          ('admin-ravi', 'Ravi (Admin)', 'ravi86198701@gmail.com', 'admin')
+        ON CONFLICT (id) DO NOTHING
+      `);
+      await client.query(`
+        INSERT INTO branches (id, name) VALUES
+          ('b1', 'CS'), ('b2', 'IT'), ('b3', 'AI/ML'), ('b4', 'Civil')
+        ON CONFLICT (id) DO NOTHING
+      `);
+      await client.query(`
+        INSERT INTO rooms (id, name) VALUES
+          ('r1', 'R101'), ('r2', 'R102')
+        ON CONFLICT (id) DO NOTHING
+      `);
+      await client.query(`
+        INSERT INTO time_slots (id, start_time, end_time, label, period) VALUES
+          ('s1', '07:00', '08:00', '7-8 AM',  1),
+          ('s2', '08:00', '09:00', '8-9 AM',  2),
+          ('s3', '09:00', '10:00', '9-10 AM', 3)
+        ON CONFLICT (id) DO NOTHING
+      `);
+
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    console.error('[POST /api/storage]', err.message);
-    res.status(500).json({ error: 'Failed to write data', detail: err.message });
+    console.error('[POST /api/reset]', err.message);
+    res.status(500).json({ error: 'Reset failed', detail: err.message });
   }
 });
 

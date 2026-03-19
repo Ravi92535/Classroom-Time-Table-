@@ -126,8 +126,6 @@ export function StoreProvider({ children }) {
   }, [notifyOtherTabs]);
 
   // ── Add an op to the queue ───────────────────────────────────────────────────
-  // key should be unique per record, e.g. "alloc:abc123" or "alloc:abc123:del"
-  // If the same key is added again before the flush fires, the NEW op wins.
   const addToQueue = useCallback((key, method, url, body) => {
     pendingSave.current = true;
     pendingOps.current.set(key, { method, url, body });
@@ -268,7 +266,6 @@ export function StoreProvider({ children }) {
     setUsers(prev => prev.filter(u => !(u.role === 'teacher' && u.branchId === id)));
     setAllocations(prev => prev.filter(a => a.branchId !== id));
     setLogs(prev => [newLog, ...prev]);
-    // Backend cascade handles allocations + user branch_id cleanup
     addToQueue(`branch:${id}:del`, 'DELETE', `/api/branches/${id}`);
     queueLog(newLog);
   };
@@ -294,7 +291,6 @@ export function StoreProvider({ children }) {
     setRooms(prev => prev.filter(r => r.id !== id));
     setAllocations(prev => prev.filter(a => a.roomId !== id));
     setLogs(prev => [newLog, ...prev]);
-    // Backend cascade handles allocations cleanup
     addToQueue(`room:${id}:del`, 'DELETE', `/api/rooms/${id}`);
     queueLog(newLog);
   };
@@ -324,7 +320,6 @@ export function StoreProvider({ children }) {
     setTimeSlots(prev => prev.filter(s => s.id !== id));
     setAllocations(prev => prev.filter(a => a.slotId !== id));
     setLogs(prev => [newLog, ...prev]);
-    // Backend cascade handles allocations cleanup
     addToQueue(`timeslot:${id}:del`, 'DELETE', `/api/timeslots/${id}`);
     queueLog(newLog);
   };
@@ -389,7 +384,6 @@ export function StoreProvider({ children }) {
     const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
 
-    // Find existing allocation for this exact (day, slotId, roomId) combo
     const existing = stateRef.current.allocations.find(
       a => a.day === day && a.slotId === slotId && a.roomId === roomId
     );
@@ -410,7 +404,6 @@ export function StoreProvider({ children }) {
     });
     setLogs(prev => [newLog, ...prev]);
 
-    // Delete the old allocation record, insert the new one
     if (existing) {
       addToQueue(`alloc:${existing.id}:del`, 'DELETE', `/api/allocations/${existing.id}`);
     }
@@ -457,34 +450,39 @@ export function StoreProvider({ children }) {
     setLogs(prev => [newLog, ...prev]);
     setNotifications(prev => [newNotif, ...prev]);
 
-    // KEY PERF WIN: the queue key is "alloc:<id>" — typing fast replaces the
-    // pending op with the latest value. Only 1 API call fires when user pauses.
     addToQueue(`alloc:${allocationId}`, 'PUT', '/api/allocations', updatedAlloc);
     queueLog(newLog);
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
-  const resetData = async () => {
-    try {
-      // Cancel any pending queue
-      if (flushTimer.current) clearTimeout(flushTimer.current);
-      pendingOps.current.clear();
-      pendingLogs.current = [];
-      pendingSave.current = false;
+  // Strategy: update UI immediately (feels instant), then fire /api/reset in
+  // the background. No awaiting before the state update — the screen clears
+  // in the same frame the button is pressed.
+  const resetData = () => {
+    // 1. Kill any pending queue so stale writes don't land after the reset
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    pendingOps.current.clear();
+    pendingLogs.current  = [];
+    pendingSave.current  = false;
+    isSavingNow.current  = false;
 
-      await fetch(`${API_BASE}/api/storage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(null),
-      });
-      setUsers(INITIAL_USERS);
-      setBranches(INITIAL_BRANCHES);
-      setRooms(INITIAL_ROOMS);
-      setTimeSlots(INITIAL_SLOTS);
-      setAllocations([]);
-      setLogs([]);
-      setNotifications([]);
-    } catch (e) { console.error('[Store] reset:', e); }
+    // 2. Update UI immediately — no waiting for the network
+    setUsers(INITIAL_USERS);
+    setBranches(INITIAL_BRANCHES);
+    setRooms(INITIAL_ROOMS);
+    setTimeSlots(INITIAL_SLOTS);
+    setAllocations([]);
+    setLogs([]);
+    setNotifications([]);
+
+    // 3. Hit the fast /api/reset endpoint in the background
+    fetch(`${API_BASE}/api/reset`, { method: 'POST' })
+      .then(res => {
+        if (!res.ok) throw new Error(`Reset failed: ${res.status}`);
+        // Tell other tabs/users to refresh
+        notifyOtherTabs();
+      })
+      .catch(e => console.error('[Store] reset:', e.message));
   };
 
   return (
