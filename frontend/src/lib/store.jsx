@@ -71,7 +71,12 @@ export function StoreProvider({ children }) {
     setBranches(d.branches         || INITIAL_BRANCHES);
     setRooms(d.rooms               || INITIAL_ROOMS);
     setTimeSlots(d.timeSlots       || INITIAL_SLOTS);
-    setAllocations(d.allocations   || []);
+
+    // ✅ Deduplicate allocations by ID to prevent duplicates
+    const allocs = d.allocations || [];
+    const deduped = Array.from(new Map(allocs.map(a => [a.id, a])).values());
+    setAllocations(deduped);
+
     setLogs(d.logs                 || []);
     // ✅ Don't sync notifications - keep them in-memory only
     // setNotifications(d.notifications || []);
@@ -92,14 +97,14 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     const onStorage = (event) => {
       if (event.key !== STORAGE_SYNC_KEY) return;
-      if (pendingSave.current || isSavingNow.current) return;
+      if (pendingSave.current || isSavingNow.current) return; // ✅ Don't fetch if we have unsaved changes
       fetchData().catch(e => console.error('[Store] fetch on storage event:', e.message));
     };
 
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BROADCAST_CHANNEL) : null;
     const onBroadcast = (messageEvent) => {
       if (messageEvent.data !== 'sync') return;
-      if (pendingSave.current || isSavingNow.current) return;
+      if (pendingSave.current || isSavingNow.current) return; // ✅ Don't fetch if we have unsaved changes
       fetchData().catch(e => console.error('[Store] fetch on broadcast event:', e.message));
     };
 
@@ -300,10 +305,21 @@ export function StoreProvider({ children }) {
   // ─── Allocation CRUD ──────────────────────────────────────────────────────
   const setAllocation = (day, slotId, roomId, branchId) => {
     if (currentUser?.role !== 'admin') return;
+    if (!day || !slotId || !roomId || !branchId) {
+      console.error('[Store] setAllocation: missing required parameters', { day, slotId, roomId, branchId });
+      return;
+    }
     const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
+
+    // Remove any existing allocation for this (day, slotId, roomId) combination
+    const filtered = stateRef.current.allocations.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId));
+
+    // Ensure no duplicates in the filtered array (by ID)
+    const deduped = Array.from(new Map(filtered.map(a => [a.id, a])).values());
+
     const newAllocs = [
-      ...stateRef.current.allocations.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId)),
+      ...deduped,
       { id: generateId(), day, slotId, roomId, branchId, subject: branch.name, updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
     ];
     const newLogs = [buildLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`), ...stateRef.current.logs];
