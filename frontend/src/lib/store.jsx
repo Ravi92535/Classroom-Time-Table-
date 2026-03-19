@@ -6,9 +6,9 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL = 500;  // 0.5 s — near-instant updates for other roles/tabs
-const SAVE_DEBOUNCE = 50;   // 0.05 s — ultra-fast save for immediate logging
-const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
+const POLL_INTERVAL     = 500;   // 0.5s polling for other tabs/roles
+const QUEUE_FLUSH_DELAY = 300;   // ms of quiet before flushing the update queue
+const STORAGE_SYNC_KEY  = 'room_system_sync_timestamp';
 const BROADCAST_CHANNEL = 'room_system_sync_channel';
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -48,22 +48,100 @@ export function StoreProvider({ children }) {
   const [viewOrientation, setViewOrientation] = useState('horizontal');
   const settings = { viewOrientation };
 
-  // ── THE KEY FIX: always-current snapshot ref ──────────────────────────────
-  // Every render updates this ref so scheduleSave ALWAYS reads fresh state,
-  // never a stale closure.
+  // Always-current snapshot ref so mutations can read latest state synchronously
   const stateRef = useRef({});
   useEffect(() => {
     stateRef.current = { users, branches, rooms, timeSlots, allocations, logs, notifications };
   });
 
-  // Save-gate refs — prevent poll from clobbering an in-flight save
-  const pendingSave  = useRef(false);
-  const isSavingNow  = useRef(false);
-  const saveTimer    = useRef(null);
-  const lastNotifMsg = useRef(''); // Track last notification message to prevent duplicates
-  const logSequence  = useRef(0);  // ✅ Track sequence number for event ordering
+  // ── Update Queue ─────────────────────────────────────────────────────────────
+  //
+  // HOW IT WORKS:
+  //   • pendingOps  — a Map keyed by "entityType:id[:del]"
+  //                   Rapid changes to the SAME record just replace the pending op.
+  //                   Fast typing a subject = only 1 API call when the user pauses.
+  //   • pendingLogs — a plain array; all logs are batched into one POST /api/logs call.
+  //   • Both are flushed together after QUEUE_FLUSH_DELAY ms of quiet (no new writes).
+  //   • All ops in a flush are fired in PARALLEL — no sequential bottleneck.
+  //
+  const pendingOps  = useRef(new Map()); // key → { method, url, body }
+  const pendingLogs = useRef([]);
+  const flushTimer  = useRef(null);
+  const isSavingNow = useRef(false);
+  const pendingSave = useRef(false);     // blocks polling while writes are in-flight
+
+  const lastNotifMsg = useRef('');
+  const logSequence  = useRef(0);
 
   useEffect(() => { setViewOrientation(loadOrientation(currentUser?.id)); }, [currentUser?.id]);
+
+  // ── Notify other tabs ────────────────────────────────────────────────────────
+  const notifyOtherTabs = useCallback(() => {
+    try { localStorage.setItem(STORAGE_SYNC_KEY, Date.now().toString()); } catch { /* ignore */ }
+    if (typeof BroadcastChannel !== 'undefined') {
+      try { const bc = new BroadcastChannel(BROADCAST_CHANNEL); bc.postMessage('sync'); bc.close(); } catch { /* ignore */ }
+    }
+  }, []);
+
+  // ── Flush the queue ──────────────────────────────────────────────────────────
+  const flushQueue = useCallback(async () => {
+    const ops  = [...pendingOps.current.values()];
+    const logs = [...pendingLogs.current];
+    pendingOps.current.clear();
+    pendingLogs.current = [];
+
+    if (ops.length === 0 && logs.length === 0) {
+      pendingSave.current = false;
+      return;
+    }
+
+    isSavingNow.current = true;
+    try {
+      // Fire all entity ops in parallel
+      const requests = ops.map(({ method, url, body }) =>
+        fetch(`${API_BASE}${url}`, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+        }).catch(e => console.error(`[Queue] ${method} ${url}:`, e.message))
+      );
+
+      // Batch all pending logs into one request
+      if (logs.length > 0) {
+        requests.push(
+          fetch(`${API_BASE}/api/logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logs }),
+          }).catch(e => console.error('[Queue] POST /api/logs:', e.message))
+        );
+      }
+
+      await Promise.all(requests);
+      notifyOtherTabs();
+    } finally {
+      isSavingNow.current = false;
+      pendingSave.current = false;
+    }
+  }, [notifyOtherTabs]);
+
+  // ── Add an op to the queue ───────────────────────────────────────────────────
+  // key should be unique per record, e.g. "alloc:abc123" or "alloc:abc123:del"
+  // If the same key is added again before the flush fires, the NEW op wins.
+  const addToQueue = useCallback((key, method, url, body) => {
+    pendingSave.current = true;
+    pendingOps.current.set(key, { method, url, body });
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(flushQueue, QUEUE_FLUSH_DELAY);
+  }, [flushQueue]);
+
+  // ── Queue a log entry (batched into one POST /api/logs per flush) ────────────
+  const queueLog = useCallback((log) => {
+    pendingSave.current = true;
+    pendingLogs.current.push(log);
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(flushQueue, QUEUE_FLUSH_DELAY);
+  }, [flushQueue]);
 
   // ── fetch & apply ─────────────────────────────────────────────────────────
   const applyData = useCallback((d) => {
@@ -73,21 +151,15 @@ export function StoreProvider({ children }) {
     setRooms(d.rooms               || INITIAL_ROOMS);
     setTimeSlots(d.timeSlots       || INITIAL_SLOTS);
 
-    // ✅ Deduplicate allocations by ID to prevent duplicates
     const allocs = d.allocations || [];
     const deduped = Array.from(new Map(allocs.map(a => [a.id, a])).values());
     setAllocations(deduped);
 
-    // ✅ Sort logs by sequence number to maintain order, newest first
     const sortedLogs = (d.logs || []).sort((a, b) => (b.sequence ?? 0) - (a.sequence ?? 0));
     setLogs(sortedLogs);
 
-    // ✅ Update logSequence ref if we received higher sequence numbers
     const maxSequence = Math.max(...sortedLogs.map(l => l.sequence || 0), logSequence.current);
     logSequence.current = maxSequence;
-
-    // ✅ Don't sync notifications - keep them in-memory only
-    // setNotifications(d.notifications || []);
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -101,18 +173,18 @@ export function StoreProvider({ children }) {
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => { fetchData().finally(() => setIsLoaded(true)); }, []);
 
-  // ── Cross-tab sync via localStorage + BroadcastChannel (instant) ─────
+  // ── Cross-tab sync ────────────────────────────────────────────────────────
   useEffect(() => {
     const onStorage = (event) => {
       if (event.key !== STORAGE_SYNC_KEY) return;
-      if (pendingSave.current || isSavingNow.current) return; // ✅ Don't fetch if we have unsaved changes
+      if (pendingSave.current || isSavingNow.current) return;
       fetchData().catch(e => console.error('[Store] fetch on storage event:', e.message));
     };
 
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BROADCAST_CHANNEL) : null;
     const onBroadcast = (messageEvent) => {
       if (messageEvent.data !== 'sync') return;
-      if (pendingSave.current || isSavingNow.current) return; // ✅ Don't fetch if we have unsaved changes
+      if (pendingSave.current || isSavingNow.current) return;
       fetchData().catch(e => console.error('[Store] fetch on broadcast event:', e.message));
     };
 
@@ -121,70 +193,29 @@ export function StoreProvider({ children }) {
 
     return () => {
       window.removeEventListener('storage', onStorage);
-      if (channel) {
-        channel.removeEventListener('message', onBroadcast);
-        channel.close();
-      }
+      if (channel) { channel.removeEventListener('message', onBroadcast); channel.close(); }
     };
   }, [fetchData]);
 
-  // ── Polling — SKIPS when admin has unsaved changes ────────────────────────
+  // ── Polling — skips when writes are in-flight ────────────────────────────
   useEffect(() => {
     const id = setInterval(() => {
-      if (pendingSave.current || isSavingNow.current) return; // skip
+      if (pendingSave.current || isSavingNow.current) return;
       fetchData();
     }, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [fetchData]);
 
-  // ── Save helper — reads from stateRef so it's ALWAYS fresh ───────────────
-  // Call this after every mutation; pass partial overrides for the fields
-  // that just changed (so even the very first render gets the right values).
-  const scheduleSave = useCallback((overrides = {}) => {
-    pendingSave.current = true;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-
-    saveTimer.current = setTimeout(() => {
-      // Merge always-current ref with the overrides from this mutation
-      // ✅ Exclude notifications - keep them in-memory only
-      const { notifications: _ignore, ...dataToSave } = stateRef.current;
-      const { notifications: _overrideNotif, ...cleanOverrides } = overrides;
-      const snapshot = { ...dataToSave, ...cleanOverrides, settings: {} };
-      isSavingNow.current = true;
-      fetch(`${API_BASE}/api/storage`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(snapshot),
-      })
-        .then(() => {
-          pendingSave.current = false;
-          // Notify other tabs they should refresh
-          try { localStorage.setItem(STORAGE_SYNC_KEY, Date.now().toString()); } catch (err) { /* ignore */ }
-          if (typeof BroadcastChannel !== 'undefined') {
-            try {
-              const bc = new BroadcastChannel(BROADCAST_CHANNEL);
-              bc.postMessage('sync');
-              bc.close();
-            } catch (err) { /* ignore it if broken in restrictive browsers */ }
-          }
-          // ✅ Don't fetchData immediately - let polling handle it to avoid race conditions
-          // The polling loop (500ms) will pick up any changes from other users
-        })
-        .catch(e => console.error('[Store] save:', e.message))
-        .finally(() => { isSavingNow.current = false; });
-    }, SAVE_DEBOUNCE);
-  }, [fetchData]);
-
-  // ─── Tiny log builder (pure) ──────────────────────────────────────────────
+  // ─── Log builder ──────────────────────────────────────────────────────────
   const buildLog = (msg) => {
-    logSequence.current++;  // ✅ Increment sequence for each event
+    logSequence.current++;
     return {
       id: generateId(),
       timestamp: new Date().toISOString(),
       message: msg,
       userId:   currentUser?.id   || '',
       userName: currentUser?.name || '',
-      sequence: logSequence.current,  // ✅ Track order of events
+      sequence: logSequence.current,
     };
   };
 
@@ -208,7 +239,6 @@ export function StoreProvider({ children }) {
 
   // ─── Notifications ────────────────────────────────────────────────────────
   const addNotification = (message, type = 'info') => {
-    // Prevent duplicate notifications within the same second
     if (lastNotifMsg.current === message) return;
     lastNotifMsg.current = message;
     setTimeout(() => { lastNotifMsg.current = ''; }, 1000);
@@ -219,101 +249,138 @@ export function StoreProvider({ children }) {
   // ─── Branch CRUD ──────────────────────────────────────────────────────────
   const addBranch = (name) => {
     if (currentUser?.role !== 'admin') return;
-    if (stateRef.current.branches.some(b => b.name.toLowerCase() === name.toLowerCase())) { alert(`Branch "${name}" already exists.`); return; }
-    const newBranches = [...stateRef.current.branches, { id: generateId(), name }];
-    const newLogs     = [buildLog(`Added branch: ${name}`), ...stateRef.current.logs];
-    setBranches(newBranches);
-    setLogs(newLogs);
-    scheduleSave({ branches: newBranches, logs: newLogs });
+    if (stateRef.current.branches.some(b => b.name.toLowerCase() === name.toLowerCase())) {
+      alert(`Branch "${name}" already exists.`);
+      return;
+    }
+    const newBranch = { id: generateId(), name };
+    const newLog    = buildLog(`Added branch: ${name}`);
+    setBranches(prev => [...prev, newBranch]);
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`branch:${newBranch.id}`, 'PUT', '/api/branches', newBranch);
+    queueLog(newLog);
   };
+
   const removeBranch = (id) => {
     if (currentUser?.role !== 'admin') return;
-    const newBranches  = stateRef.current.branches.filter(b => b.id !== id);
-    const newUsers     = stateRef.current.users.filter(u => !(u.role === 'teacher' && u.branchId === id));
-    const newAllocs    = stateRef.current.allocations.filter(a => a.branchId !== id);
-    const newLogs      = [buildLog(`Removed branch ${id}`), ...stateRef.current.logs];
-    setBranches(newBranches); setUsers(newUsers); setAllocations(newAllocs); setLogs(newLogs);
-    scheduleSave({ branches: newBranches, users: newUsers, allocations: newAllocs, logs: newLogs });
+    const newLog = buildLog(`Removed branch ${id}`);
+    setBranches(prev => prev.filter(b => b.id !== id));
+    setUsers(prev => prev.filter(u => !(u.role === 'teacher' && u.branchId === id)));
+    setAllocations(prev => prev.filter(a => a.branchId !== id));
+    setLogs(prev => [newLog, ...prev]);
+    // Backend cascade handles allocations + user branch_id cleanup
+    addToQueue(`branch:${id}:del`, 'DELETE', `/api/branches/${id}`);
+    queueLog(newLog);
   };
 
   // ─── Room CRUD ────────────────────────────────────────────────────────────
   const addRoom = (name) => {
     if (currentUser?.role !== 'admin') return;
-    if (stateRef.current.rooms.some(r => r.name.toLowerCase() === name.toLowerCase())) { alert(`Room "${name}" already exists.`); return; }
-    const newRooms = [...stateRef.current.rooms, { id: generateId(), name }];
-    const newLogs  = [buildLog(`Added room: ${name}`), ...stateRef.current.logs];
-    setRooms(newRooms);
-    setLogs(newLogs);
-    scheduleSave({ rooms: newRooms, logs: newLogs });
+    if (stateRef.current.rooms.some(r => r.name.toLowerCase() === name.toLowerCase())) {
+      alert(`Room "${name}" already exists.`);
+      return;
+    }
+    const newRoom = { id: generateId(), name };
+    const newLog  = buildLog(`Added room: ${name}`);
+    setRooms(prev => [...prev, newRoom]);
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`room:${newRoom.id}`, 'PUT', '/api/rooms', newRoom);
+    queueLog(newLog);
   };
+
   const removeRoom = (id) => {
     if (currentUser?.role !== 'admin') return;
-    const newRooms  = stateRef.current.rooms.filter(r => r.id !== id);
-    const newAllocs = stateRef.current.allocations.filter(a => a.roomId !== id);
-    const newLogs   = [buildLog(`Removed room ${id}`), ...stateRef.current.logs];
-    setRooms(newRooms); setAllocations(newAllocs); setLogs(newLogs);
-    scheduleSave({ rooms: newRooms, allocations: newAllocs, logs: newLogs });
+    const newLog = buildLog(`Removed room ${id}`);
+    setRooms(prev => prev.filter(r => r.id !== id));
+    setAllocations(prev => prev.filter(a => a.roomId !== id));
+    setLogs(prev => [newLog, ...prev]);
+    // Backend cascade handles allocations cleanup
+    addToQueue(`room:${id}:del`, 'DELETE', `/api/rooms/${id}`);
+    queueLog(newLog);
   };
 
   // ─── TimeSlot CRUD ────────────────────────────────────────────────────────
   const addTimeSlot = (startTime, endTime, period) => {
     if (currentUser?.role !== 'admin') return { success: false, error: 'Not authorised.' };
     const p = Number(period);
-    if (toMin(startTime) >= toMin(endTime))       return { success: false, error: 'Start must be before end.' };
+    if (toMin(startTime) >= toMin(endTime))          return { success: false, error: 'Start must be before end.' };
     if (stateRef.current.timeSlots.some(s => s.period === p)) return { success: false, error: `Period ${p} already exists.` };
     const conflict = stateRef.current.timeSlots.find(s => overlaps(startTime, endTime, s.startTime, s.endTime));
     if (conflict) return { success: false, error: `Overlaps with Period ${conflict.period} (${conflict.label}).` };
-    const label      = `${startTime} - ${endTime}`;
-    const newSlots   = [...stateRef.current.timeSlots, { id: generateId(), startTime, endTime, label, period: p }].sort((a, b) => a.period - b.period);
-    const newLogs    = [buildLog(`Added period ${p}: ${label}`), ...stateRef.current.logs];
-    setTimeSlots(newSlots); setLogs(newLogs);
-    scheduleSave({ timeSlots: newSlots, logs: newLogs });
+
+    const label   = `${startTime} - ${endTime}`;
+    const newSlot = { id: generateId(), startTime, endTime, label, period: p };
+    const newLog  = buildLog(`Added period ${p}: ${label}`);
+    setTimeSlots(prev => [...prev, newSlot].sort((a, b) => a.period - b.period));
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`timeslot:${newSlot.id}`, 'PUT', '/api/timeslots', newSlot);
+    queueLog(newLog);
     return { success: true };
   };
+
   const removeTimeSlot = (id) => {
     if (currentUser?.role !== 'admin') return;
-    const newSlots  = stateRef.current.timeSlots.filter(s => s.id !== id);
-    const newAllocs = stateRef.current.allocations.filter(a => a.slotId !== id);
-    const newLogs   = [buildLog(`Removed time slot ${id}`), ...stateRef.current.logs];
-    setTimeSlots(newSlots); setAllocations(newAllocs); setLogs(newLogs);
-    scheduleSave({ timeSlots: newSlots, allocations: newAllocs, logs: newLogs });
+    const newLog = buildLog(`Removed time slot ${id}`);
+    setTimeSlots(prev => prev.filter(s => s.id !== id));
+    setAllocations(prev => prev.filter(a => a.slotId !== id));
+    setLogs(prev => [newLog, ...prev]);
+    // Backend cascade handles allocations cleanup
+    addToQueue(`timeslot:${id}:del`, 'DELETE', `/api/timeslots/${id}`);
+    queueLog(newLog);
   };
 
   // ─── Teacher CRUD ─────────────────────────────────────────────────────────
   const addTeacher = (name, email, branchId) => {
     if (currentUser?.role !== 'admin' || !email || !branchId) return;
-    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
+    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      alert(`Email "${email}" already exists.`);
+      return;
+    }
     const displayName = name || email.split('@')[0];
-    const newUsers    = [...stateRef.current.users, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId }];
-    const newLogs     = [buildLog(`Added teacher: ${displayName} (${email})`), ...stateRef.current.logs];
-    setUsers(newUsers); setLogs(newLogs);
-    scheduleSave({ users: newUsers, logs: newLogs });
+    const newUser     = { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'teacher', branchId };
+    const newLog      = buildLog(`Added teacher: ${displayName} (${email})`);
+    setUsers(prev => [...prev, newUser]);
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`user:${newUser.id}`, 'PUT', '/api/users', newUser);
+    queueLog(newLog);
   };
+
   const removeTeacher = (id) => {
     if (currentUser?.role !== 'admin') return;
-    const newUsers = stateRef.current.users.filter(u => u.id !== id);
-    const newLogs  = [buildLog(`Removed teacher ${id}`), ...stateRef.current.logs];
-    setUsers(newUsers); setLogs(newLogs);
-    scheduleSave({ users: newUsers, logs: newLogs });
+    const newLog = buildLog(`Removed teacher ${id}`);
+    setUsers(prev => prev.filter(u => u.id !== id));
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`user:${id}:del`, 'DELETE', `/api/users/${id}`);
+    queueLog(newLog);
   };
 
   // ─── Admin CRUD ───────────────────────────────────────────────────────────
   const addAdmin = (name, email) => {
     if (currentUser?.role !== 'admin') return;
-    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) { alert(`Email "${email}" already exists.`); return; }
+    if (stateRef.current.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      alert(`Email "${email}" already exists.`);
+      return;
+    }
     const displayName = name || email.split('@')[0];
-    const newUsers    = [...stateRef.current.users, { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' }];
-    const newLogs     = [buildLog(`Added admin: ${displayName} (${email})`), ...stateRef.current.logs];
-    setUsers(newUsers); setLogs(newLogs);
-    scheduleSave({ users: newUsers, logs: newLogs });
+    const newUser     = { id: generateId(), name: displayName, email: email.toLowerCase(), role: 'admin' };
+    const newLog      = buildLog(`Added admin: ${displayName} (${email})`);
+    setUsers(prev => [...prev, newUser]);
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`user:${newUser.id}`, 'PUT', '/api/users', newUser);
+    queueLog(newLog);
   };
+
   const removeAdmin = (id) => {
     if (currentUser?.role !== 'admin') return;
-    if (stateRef.current.users.filter(u => u.role === 'admin').length <= 1) { alert('Cannot remove last admin.'); return; }
-    const newUsers = stateRef.current.users.filter(u => u.id !== id);
-    const newLogs  = [buildLog(`Removed admin ${id}`), ...stateRef.current.logs];
-    setUsers(newUsers); setLogs(newLogs);
-    scheduleSave({ users: newUsers, logs: newLogs });
+    if (stateRef.current.users.filter(u => u.role === 'admin').length <= 1) {
+      alert('Cannot remove last admin.');
+      return;
+    }
+    const newLog = buildLog(`Removed admin ${id}`);
+    setUsers(prev => prev.filter(u => u.id !== id));
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`user:${id}:del`, 'DELETE', `/api/users/${id}`);
+    queueLog(newLog);
   };
 
   // ─── Allocation CRUD ──────────────────────────────────────────────────────
@@ -322,27 +389,42 @@ export function StoreProvider({ children }) {
     const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
 
-    // Remove any existing allocation for this (day, slotId, roomId) combination
-    const filtered = stateRef.current.allocations.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId));
+    // Find existing allocation for this exact (day, slotId, roomId) combo
+    const existing = stateRef.current.allocations.find(
+      a => a.day === day && a.slotId === slotId && a.roomId === roomId
+    );
 
-    // Ensure no duplicates in the filtered array (by ID)
-    const deduped = Array.from(new Map(filtered.map(a => [a.id, a])).values());
+    const newAlloc = {
+      id: generateId(),
+      day, slotId, roomId, branchId,
+      subject: branch.name,
+      updatedBy: currentUser.id,
+      updatedAt: new Date().toISOString(),
+    };
+    const newLog = buildLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
 
-    const newAllocs = [
-      ...deduped,
-      { id: generateId(), day, slotId, roomId, branchId, subject: branch.name, updatedBy: currentUser.id, updatedAt: new Date().toISOString() },
-    ];
-    const newLogs = [buildLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`), ...stateRef.current.logs];
-    setAllocations(newAllocs); setLogs(newLogs);
-    scheduleSave({ allocations: newAllocs, logs: newLogs });
+    setAllocations(prev => {
+      const filtered = prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId));
+      const deduped  = Array.from(new Map(filtered.map(a => [a.id, a])).values());
+      return [...deduped, newAlloc];
+    });
+    setLogs(prev => [newLog, ...prev]);
+
+    // Delete the old allocation record, insert the new one
+    if (existing) {
+      addToQueue(`alloc:${existing.id}:del`, 'DELETE', `/api/allocations/${existing.id}`);
+    }
+    addToQueue(`alloc:${newAlloc.id}`, 'PUT', '/api/allocations', newAlloc);
+    queueLog(newLog);
   };
 
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
-    const newAllocs = stateRef.current.allocations.filter(a => a.id !== allocationId);
-    const newLogs   = [buildLog(`Removed allocation ${allocationId}`), ...stateRef.current.logs];
-    setAllocations(newAllocs); setLogs(newLogs);
-    scheduleSave({ allocations: newAllocs, logs: newLogs });
+    const newLog = buildLog(`Removed allocation ${allocationId}`);
+    setAllocations(prev => prev.filter(a => a.id !== allocationId));
+    setLogs(prev => [newLog, ...prev]);
+    addToQueue(`alloc:${allocationId}:del`, 'DELETE', `/api/allocations/${allocationId}`);
+    queueLog(newLog);
   };
 
   const updateAllocationSubject = (allocationId, newSubject, newBranchLabel) => {
@@ -354,30 +436,54 @@ export function StoreProvider({ children }) {
       if (currentUser.branchId !== allocation.branchId) { alert('You can only edit your own branch slots.'); return; }
     } else if (currentUser.role !== 'admin') return;
 
-    const newAllocs = stateRef.current.allocations.map(a =>
-      a.id === allocationId
-        ? { ...a, subject: newSubject, branchLabel: newBranchLabel !== undefined ? newBranchLabel : a.branchLabel, updatedBy: currentUser.id, updatedAt: new Date().toISOString() }
-        : a
-    );
-    const branch   = stateRef.current.branches.find(b => b.id === allocation.branchId);
-    const newLogs  = [buildLog(`Updated slot: "${newSubject}" (${newBranchLabel ?? branch?.name})`), ...stateRef.current.logs];
-    const newNotifs = [
-      { id: generateId(), message: `📝 ${branch?.name} - ${allocation.day} updated: '${newSubject}'`, type: 'info', timestamp: new Date().toISOString(), isRead: false },
-      ...stateRef.current.notifications,
-    ];
-    setAllocations(newAllocs); setLogs(newLogs); setNotifications(newNotifs);
-    // ✅ Don't save notifications - keep them in-memory only
-    scheduleSave({ allocations: newAllocs, logs: newLogs });
+    const updatedAlloc = {
+      ...allocation,
+      subject:     newSubject,
+      branchLabel: newBranchLabel !== undefined ? newBranchLabel : allocation.branchLabel,
+      updatedBy:   currentUser.id,
+      updatedAt:   new Date().toISOString(),
+    };
+    const branch  = stateRef.current.branches.find(b => b.id === allocation.branchId);
+    const newLog  = buildLog(`Updated slot: "${newSubject}" (${newBranchLabel ?? branch?.name})`);
+    const newNotif = {
+      id: generateId(),
+      message: `📝 ${branch?.name} - ${allocation.day} updated: '${newSubject}'`,
+      type: 'info',
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    };
+
+    setAllocations(prev => prev.map(a => a.id === allocationId ? updatedAlloc : a));
+    setLogs(prev => [newLog, ...prev]);
+    setNotifications(prev => [newNotif, ...prev]);
+
+    // KEY PERF WIN: the queue key is "alloc:<id>" — typing fast replaces the
+    // pending op with the latest value. Only 1 API call fires when user pauses.
+    addToQueue(`alloc:${allocationId}`, 'PUT', '/api/allocations', updatedAlloc);
+    queueLog(newLog);
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
   const resetData = async () => {
     try {
+      // Cancel any pending queue
+      if (flushTimer.current) clearTimeout(flushTimer.current);
+      pendingOps.current.clear();
+      pendingLogs.current = [];
       pendingSave.current = false;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      await fetch(`${API_BASE}/api/storage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(null) });
-      setUsers(INITIAL_USERS); setBranches(INITIAL_BRANCHES); setRooms(INITIAL_ROOMS);
-      setTimeSlots(INITIAL_SLOTS); setAllocations([]); setLogs([]); setNotifications([]);
+
+      await fetch(`${API_BASE}/api/storage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(null),
+      });
+      setUsers(INITIAL_USERS);
+      setBranches(INITIAL_BRANCHES);
+      setRooms(INITIAL_ROOMS);
+      setTimeSlots(INITIAL_SLOTS);
+      setAllocations([]);
+      setLogs([]);
+      setNotifications([]);
     } catch (e) { console.error('[Store] reset:', e); }
   };
 

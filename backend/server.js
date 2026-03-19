@@ -25,7 +25,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use((req, res, next) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
@@ -57,7 +56,7 @@ const INITIAL_DATA = {
   notifications: [],
 };
 
-// ─── DB Init (runs once per serverless instance, NOT per request) ──────────────
+// ─── DB Init ──────────────────────────────────────────────────────────────────
 let dbReady = false;
 let dbInitPromise = null;
 
@@ -112,7 +111,6 @@ function ensureDB() {
       client.release();
     }
   })().catch(err => {
-    // Reset so next request retries
     dbInitPromise = null;
     dbReady = false;
     throw err;
@@ -138,7 +136,7 @@ async function seedInitialData(client) {
     );
 }
 
-// ─── Read All ─────────────────────────────────────────────────────────────────
+// ─── Read All (used for initial load + polling) ────────────────────────────────
 async function readData() {
   const client = await pool.connect();
   try {
@@ -194,7 +192,7 @@ async function readData() {
   }
 }
 
-// ─── Write All ────────────────────────────────────────────────────────────────
+// ─── Full Write (only used for RESET) ─────────────────────────────────────────
 async function writeData(data) {
   const client = await pool.connect();
   try {
@@ -279,9 +277,9 @@ function generateId() {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// Health — no DB needed, always fast
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Full read — used for initial load and polling
 app.get('/api/storage', async (req, res) => {
   try {
     await ensureDB();
@@ -292,6 +290,7 @@ app.get('/api/storage', async (req, res) => {
   }
 });
 
+// Full write — only used for RESET, not for normal updates
 app.post('/api/storage', async (req, res) => {
   try {
     await ensureDB();
@@ -304,12 +303,245 @@ app.post('/api/storage', async (req, res) => {
   }
 });
 
+// ─── Granular Entity Endpoints (fast, surgical writes) ────────────────────────
+
+// BRANCHES — upsert single
+app.put('/api/branches', async (req, res) => {
+  try {
+    await ensureDB();
+    const { id, name } = req.body;
+    if (!id || !name) return res.status(400).json({ error: 'id and name required' });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO branches (id,name) VALUES ($1,$2)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
+        [id, name]
+      );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[PUT /api/branches]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// BRANCHES — delete single (cascades allocations + clears user branch_id)
+app.delete('/api/branches/:id', async (req, res) => {
+  try {
+    await ensureDB();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM allocations WHERE branch_id = $1', [req.params.id]);
+      await client.query('UPDATE users SET branch_id = NULL WHERE branch_id = $1', [req.params.id]);
+      await client.query('DELETE FROM branches WHERE id = $1', [req.params.id]);
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+  } catch (err) {
+    console.error('[DELETE /api/branches/:id]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ROOMS — upsert single
+app.put('/api/rooms', async (req, res) => {
+  try {
+    await ensureDB();
+    const { id, name } = req.body;
+    if (!id || !name) return res.status(400).json({ error: 'id and name required' });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO rooms (id,name) VALUES ($1,$2)
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
+        [id, name]
+      );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[PUT /api/rooms]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ROOMS — delete single (cascades allocations)
+app.delete('/api/rooms/:id', async (req, res) => {
+  try {
+    await ensureDB();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM allocations WHERE room_id = $1', [req.params.id]);
+      await client.query('DELETE FROM rooms WHERE id = $1', [req.params.id]);
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+  } catch (err) {
+    console.error('[DELETE /api/rooms/:id]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TIME SLOTS — upsert single
+app.put('/api/timeslots', async (req, res) => {
+  try {
+    await ensureDB();
+    const { id, startTime, endTime, label, period } = req.body;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO time_slots (id,start_time,end_time,label,period) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO UPDATE SET
+           start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
+           label = EXCLUDED.label, period = EXCLUDED.period`,
+        [id, startTime, endTime, label, period]
+      );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[PUT /api/timeslots]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TIME SLOTS — delete single (cascades allocations)
+app.delete('/api/timeslots/:id', async (req, res) => {
+  try {
+    await ensureDB();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM allocations WHERE slot_id = $1', [req.params.id]);
+      await client.query('DELETE FROM time_slots WHERE id = $1', [req.params.id]);
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+  } catch (err) {
+    console.error('[DELETE /api/timeslots/:id]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ALLOCATIONS — upsert single
+app.put('/api/allocations', async (req, res) => {
+  try {
+    await ensureDB();
+    const a = req.body;
+    if (!a.id) return res.status(400).json({ error: 'id required' });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO allocations
+           (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (id) DO UPDATE SET
+           day          = EXCLUDED.day,
+           slot_id      = EXCLUDED.slot_id,
+           room_id      = EXCLUDED.room_id,
+           branch_id    = EXCLUDED.branch_id,
+           subject      = EXCLUDED.subject,
+           updated_by   = EXCLUDED.updated_by,
+           updated_at   = EXCLUDED.updated_at,
+           branch_label = EXCLUDED.branch_label`,
+        [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
+         a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]
+      );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[PUT /api/allocations]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ALLOCATIONS — delete single
+app.delete('/api/allocations/:id', async (req, res) => {
+  try {
+    await ensureDB();
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM allocations WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[DELETE /api/allocations/:id]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// USERS — upsert single
+app.put('/api/users', async (req, res) => {
+  try {
+    await ensureDB();
+    const u = req.body;
+    if (!u.id || !u.email) return res.status(400).json({ error: 'id and email required' });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO users (id,name,email,role,branch_id,picture) VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name, email = EXCLUDED.email, role = EXCLUDED.role,
+           branch_id = EXCLUDED.branch_id, picture = EXCLUDED.picture`,
+        [u.id, u.name, u.email, u.role, u.branchId || null, u.picture || null]
+      );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[PUT /api/users]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// USERS — delete single
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    await ensureDB();
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[DELETE /api/users/:id]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// LOGS — batch insert (never overwrites, only appends)
+app.post('/api/logs', async (req, res) => {
+  try {
+    await ensureDB();
+    const { logs } = req.body;
+    if (!Array.isArray(logs) || logs.length === 0)
+      return res.status(400).json({ error: 'logs array required' });
+    const client = await pool.connect();
+    try {
+      for (const l of logs)
+        await client.query(
+          `INSERT INTO logs (id,timestamp,message,user_id,user_name)
+           VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING`,
+          [l.id, l.timestamp || new Date(), l.message, l.userId || '', l.userName || '']
+        );
+      res.json({ success: true });
+    } finally { client.release(); }
+  } catch (err) {
+    console.error('[POST /api/logs]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Auth ──────────────────────────────────────────────────────────────────────
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: 'Token required' });
 
-    // Verify with Google
     const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${idToken}` },
     });
@@ -338,7 +570,6 @@ app.post('/api/auth/google', async (req, res) => {
         });
       }
 
-      // Unknown user → transient student
       return res.json({
         success: true, role: 'student',
         user: { id: 'student-' + generateId(), name, email, role: 'student', picture },
