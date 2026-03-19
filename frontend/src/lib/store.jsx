@@ -6,7 +6,7 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL = 5000; // 5 s — viewers get fresh data faster
+const POLL_INTERVAL = 2000; // 2 s — faster updates for other roles/tabs
 const SAVE_DEBOUNCE = 150;  // 0.15 s — faster response for admin changes while still batching
 const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
 const BROADCAST_CHANNEL = 'room_system_sync_channel';
@@ -72,7 +72,8 @@ export function StoreProvider({ children }) {
     setTimeSlots(d.timeSlots       || INITIAL_SLOTS);
     setAllocations(d.allocations   || []);
     setLogs(d.logs                 || []);
-    setNotifications(d.notifications || []);
+    // ✅ Don't sync notifications - keep them in-memory only
+    // setNotifications(d.notifications || []);
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -131,7 +132,9 @@ export function StoreProvider({ children }) {
 
     saveTimer.current = setTimeout(() => {
       // Merge always-current ref with the overrides from this mutation
-      const snapshot = { ...stateRef.current, ...overrides, settings: {} };
+      // ✅ Exclude notifications - keep them in-memory only
+      const { notifications: _ignore, ...dataToSave } = stateRef.current;
+      const snapshot = { ...dataToSave, ...overrides, settings: {} };
       isSavingNow.current = true;
       fetch(`${API_BASE}/api/storage`, {
         method:  'POST',
