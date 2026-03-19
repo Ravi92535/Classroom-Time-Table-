@@ -6,8 +6,8 @@ const API_BASE = typeof window !== 'undefined' && window.location.hostname !== '
   ? 'https://classroom-time-table.vercel.app'
   : 'http://localhost:3001';
 
-const POLL_INTERVAL = 1000; // 1 s — faster updates for other roles/tabs (was 2000ms)
-const SAVE_DEBOUNCE = 100;  // 0.1 s — even faster response for admin changes (was 150ms)
+const POLL_INTERVAL = 500;  // 0.5 s — near-instant updates for other roles/tabs
+const SAVE_DEBOUNCE = 50;   // 0.05 s — ultra-fast save for immediate logging
 const STORAGE_SYNC_KEY = 'room_system_sync_timestamp';
 const BROADCAST_CHANNEL = 'room_system_sync_channel';
 
@@ -61,6 +61,7 @@ export function StoreProvider({ children }) {
   const isSavingNow  = useRef(false);
   const saveTimer    = useRef(null);
   const lastNotifMsg = useRef(''); // Track last notification message to prevent duplicates
+  const logSequence  = useRef(0);  // ✅ Track sequence number for event ordering
 
   useEffect(() => { setViewOrientation(loadOrientation(currentUser?.id)); }, [currentUser?.id]);
 
@@ -77,7 +78,14 @@ export function StoreProvider({ children }) {
     const deduped = Array.from(new Map(allocs.map(a => [a.id, a])).values());
     setAllocations(deduped);
 
-    setLogs(d.logs                 || []);
+    // ✅ Sort logs by sequence number to maintain order, newest first
+    const sortedLogs = (d.logs || []).sort((a, b) => (b.sequence ?? 0) - (a.sequence ?? 0));
+    setLogs(sortedLogs);
+
+    // ✅ Update logSequence ref if we received higher sequence numbers
+    const maxSequence = Math.max(...sortedLogs.map(l => l.sequence || 0), logSequence.current);
+    logSequence.current = maxSequence;
+
     // ✅ Don't sync notifications - keep them in-memory only
     // setNotifications(d.notifications || []);
   }, []);
@@ -167,12 +175,17 @@ export function StoreProvider({ children }) {
   }, [fetchData]);
 
   // ─── Tiny log builder (pure) ──────────────────────────────────────────────
-  const buildLog = (msg) => ({
-    id: generateId(), timestamp: new Date().toISOString(),
-    message: msg,
-    userId:   currentUser?.id   || '',
-    userName: currentUser?.name || '',
-  });
+  const buildLog = (msg) => {
+    logSequence.current++;  // ✅ Increment sequence for each event
+    return {
+      id: generateId(),
+      timestamp: new Date().toISOString(),
+      message: msg,
+      userId:   currentUser?.id   || '',
+      userName: currentUser?.name || '',
+      sequence: logSequence.current,  // ✅ Track order of events
+    };
+  };
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   const loginWithGoogle = async (idToken) => {

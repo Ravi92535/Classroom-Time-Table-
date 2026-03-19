@@ -14,11 +14,20 @@ export default function LogViewer() {
         <ul className="space-y-2">
           {logs.map((log) => (
             <li key={log.id} className="text-sm border-b border-gray-50 pb-1 last:border-0">
-              <span className="text-gray-400 text-xs mr-2">
-                {new Date(log.timestamp).toLocaleTimeString()}
-              </span>
-              <span className="font-medium text-gray-700 mr-1">{log.userName}:</span>
-              <span className="text-gray-600">{log.message}</span>
+              <div className="flex items-start gap-2">
+                {log.sequence && (
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                    {log.sequence}
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="text-gray-400 text-xs mr-2">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span className="font-medium text-gray-700 mr-1">{log.userName}:</span>
+                  <span className="text-gray-600">{log.message}</span>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
