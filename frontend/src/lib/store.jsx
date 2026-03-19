@@ -158,7 +158,7 @@ export function StoreProvider({ children }) {
       })
         .then(() => {
           pendingSave.current = false;
-          // Notify other tabs they should refresh, and refresh this tab too.
+          // Notify other tabs they should refresh
           try { localStorage.setItem(STORAGE_SYNC_KEY, Date.now().toString()); } catch (err) { /* ignore */ }
           if (typeof BroadcastChannel !== 'undefined') {
             try {
@@ -167,7 +167,8 @@ export function StoreProvider({ children }) {
               bc.close();
             } catch (err) { /* ignore it if broken in restrictive browsers */ }
           }
-          fetchData().catch(e => console.error('[Store] fetch after save:', e.message));
+          // ✅ Don't fetchData immediately - let polling handle it to avoid race conditions
+          // The polling loop (500ms) will pick up any changes from other users
         })
         .catch(e => console.error('[Store] save:', e.message))
         .finally(() => { isSavingNow.current = false; });
