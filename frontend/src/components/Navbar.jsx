@@ -44,7 +44,7 @@ export default function Navbar() {
 
         {/* Right: desktop controls */}
         <div className="hidden md:flex items-center space-x-3">
-          <NotificationCenter />
+          {/* <NotificationCenter /> */}
 
           <button
             onClick={toggleOrientation}
@@ -82,7 +82,7 @@ export default function Navbar() {
 
         {/* Right: mobile controls */}
         <div className="flex md:hidden items-center space-x-2">
-          <NotificationCenter />
+          {/* <NotificationCenter /> */}
           {currentUser.picture ? (
             <img
               src={currentUser.picture}
