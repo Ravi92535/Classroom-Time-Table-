@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const cors    = require('cors');
+const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
@@ -141,16 +141,16 @@ async function readData() {
   const client = await pool.connect();
   try {
     const [usersRes, branchesRes, roomsRes, timeSlotsRes,
-           allocationsRes, logsRes, notificationsRes, settingsRes] = await Promise.all([
-      client.query('SELECT * FROM users         ORDER BY id'),
-      client.query('SELECT * FROM branches      ORDER BY id'),
-      client.query('SELECT * FROM rooms         ORDER BY id'),
-      client.query('SELECT * FROM time_slots    ORDER BY period, id'),
-      client.query('SELECT * FROM allocations   ORDER BY updated_at DESC'),
-      client.query('SELECT * FROM logs          ORDER BY timestamp DESC LIMIT 500'),
-      client.query('SELECT * FROM notifications ORDER BY timestamp DESC LIMIT 200'),
-      client.query('SELECT key, value FROM settings'),
-    ]);
+      allocationsRes, logsRes, notificationsRes, settingsRes] = await Promise.all([
+        client.query('SELECT * FROM users         ORDER BY id'),
+        client.query('SELECT * FROM branches      ORDER BY id'),
+        client.query('SELECT * FROM rooms         ORDER BY id'),
+        client.query('SELECT * FROM time_slots    ORDER BY period, id'),
+        client.query('SELECT * FROM allocations   ORDER BY updated_at DESC'),
+        client.query('SELECT * FROM logs          ORDER BY timestamp DESC LIMIT 500'),
+        client.query('SELECT * FROM notifications ORDER BY timestamp DESC LIMIT 200'),
+        client.query('SELECT key, value FROM settings'),
+      ]);
 
     const settingsObj = {};
     for (const row of settingsRes.rows) settingsObj[row.key] = row.value;
@@ -159,11 +159,11 @@ async function readData() {
       users: usersRes.rows.map(u => {
         const obj = { id: u.id, name: u.name, email: u.email, role: u.role };
         if (u.branch_id) obj.branchId = u.branch_id;
-        if (u.picture)   obj.picture  = u.picture;
+        if (u.picture) obj.picture = u.picture;
         return obj;
       }),
-      branches:  branchesRes.rows.map(b  => ({ id: b.id, name: b.name })),
-      rooms:     roomsRes.rows.map(r     => ({ id: r.id, name: r.name })),
+      branches: branchesRes.rows.map(b => ({ id: b.id, name: b.name })),
+      rooms: roomsRes.rows.map(r => ({ id: r.id, name: r.name })),
       timeSlots: timeSlotsRes.rows.map(ts => ({
         id: ts.id, startTime: ts.start_time, endTime: ts.end_time,
         label: ts.label, period: ts.period,
@@ -414,7 +414,7 @@ app.put('/api/allocations', async (req, res) => {
            updated_at   = EXCLUDED.updated_at,
            branch_label = EXCLUDED.branch_label`,
         [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
-         a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]
+        a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]
       );
       res.json({ success: true });
     } finally { client.release(); }
