@@ -55,8 +55,10 @@ export default function TimetableImporter() {
       form.append('semester', semester.trim());
 
       setProgress('AI is reading the timetable — this can take a few minutes…');
+      console.log(`[Importer] Sending PDF to: ${PYTHON_API}/parse-timetable`);
       const res  = await fetch(`${PYTHON_API}/parse-timetable`, { method: 'POST', body: form });
       const json = await res.json();
+      console.log('[Importer] Received response:', json);
 
       if (!res.ok) throw new Error(json.detail || 'Parsing failed');
       if (!json.data?.length) throw new Error('No timetable entries were found. Check your search query.');
