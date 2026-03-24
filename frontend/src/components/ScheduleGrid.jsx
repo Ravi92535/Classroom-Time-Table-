@@ -45,11 +45,11 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
       }
     } else if (currentUser?.role === 'teacher') {
       if (allocation && isEditable(allocation) && onEditSlot) {
-        // ✅ Pass branchLabel too (custom label if set, else the branch name)
+        // ✅ Pass branchLabel and section
         const currentBranchLabel = allocation.branchLabel !== undefined
           ? allocation.branchLabel
           : getBranchName(allocation.branchId);
-        onEditSlot(allocation.id, allocation.subject, currentBranchLabel);
+        onEditSlot(allocation.id, allocation.subject, currentBranchLabel, allocation.section);
       }
     }
   };
@@ -76,8 +76,13 @@ export default function ScheduleGrid({ roomId, onEditSlot }) {
             ({displayBranchLabel})
           </span>
         )}
+        {allocation.section && (
+          <span className="mt-0.5 bg-green-100 text-green-800 text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-sm font-semibold whitespace-nowrap">
+            Sec: {allocation.section}
+          </span>
+        )}
         {editable && (
-          <span className="mt-0.5 text-[9px] sm:text-[10px] text-blue-600 border border-blue-200 px-1 rounded leading-tight">
+          <span className="mt-0.5 text-[9px] sm:text-[10px] text-blue-600 border border-blue-200 px-1 rounded leading-tight cursor-pointer hover:bg-blue-50">
             {currentUser?.role === 'admin' ? 'Remove' : 'Edit'}
           </span>
         )}

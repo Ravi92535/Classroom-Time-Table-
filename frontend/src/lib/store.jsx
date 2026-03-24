@@ -420,7 +420,7 @@ export function StoreProvider({ children }) {
     queueLog(newLog);
   };
 
-  const updateAllocationSubject = (allocationId, newSubject, newBranchLabel) => {
+  const updateAllocationSubject = (allocationId, newSubject, newBranchLabel, newSection) => {
     if (!currentUser) return;
     const allocation = stateRef.current.allocations.find(a => a.id === allocationId);
     if (!allocation) return;
@@ -433,6 +433,7 @@ export function StoreProvider({ children }) {
       ...allocation,
       subject:     newSubject,
       branchLabel: newBranchLabel !== undefined ? newBranchLabel : allocation.branchLabel,
+      section:     newSection !== undefined ? newSection : allocation.section,
       updatedBy:   currentUser.id,
       updatedAt:   new Date().toISOString(),
     };

@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 
-export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject, initialBranchLabel }) {
+export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject, initialBranchLabel, initialSection }) {
   const [subject,     setSubject]     = useState(initialSubject     || '');
   const [branchLabel, setBranchLabel] = useState(initialBranchLabel || '');
+  const [section,     setSection]     = useState(initialSection     || '');
 
   useEffect(() => {
     setSubject(initialSubject       || '');
     setBranchLabel(initialBranchLabel || '');
-  }, [initialSubject, initialBranchLabel, isOpen]);
+    setSection(initialSection       || '');
+  }, [initialSubject, initialBranchLabel, initialSection, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
     if (!subject.trim()) return;
-    onSave(subject.trim(), branchLabel.trim());
+    onSave(subject.trim(), branchLabel.trim(), section.trim());
     onClose();
   };
 
@@ -45,8 +47,21 @@ export default function EditSlotModal({ isOpen, onClose, onSave, initialSubject,
           value={branchLabel}
           onChange={(e) => setBranchLabel(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          className="w-full p-3 border border-gray-300 rounded-lg mb-5 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           placeholder="e.g. Prof Lov Kumar"
+        />
+
+        {/* Section */}
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          Section <span className="normal-case font-normal text-gray-400">(e.g. 1, 2, A, B)</span>
+        </label>
+        <input
+          type="text"
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          className="w-full p-3 border border-gray-300 rounded-lg mb-5 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          placeholder="e.g. IT-1 or 1"
         />
 
         <div className="flex gap-3">

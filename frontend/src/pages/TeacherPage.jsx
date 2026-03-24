@@ -37,16 +37,16 @@ export default function TeacherPage() {
     );
   }
 
-  // ✅ Receive all three: id, subject, branchLabel
-  const handleEditSlot = (id, subject, branchLabel) => {
-    setSelectedAllocation({ id, subject, branchLabel });
+  // ✅ Receive all four: id, subject, branchLabel, section
+  const handleEditSlot = (id, subject, branchLabel, section) => {
+    setSelectedAllocation({ id, subject, branchLabel, section });
     setIsModalOpen(true);
   };
 
-  // ✅ Pass both newSubject and newBranchLabel to the store
-  const handleSaveSlot = (newSubject, newBranchLabel) => {
+  // ✅ Pass newSubject, newBranchLabel, newSection to the store
+  const handleSaveSlot = (newSubject, newBranchLabel, newSection) => {
     if (selectedAllocation) {
-      updateAllocationSubject(selectedAllocation.id, newSubject, newBranchLabel);
+      updateAllocationSubject(selectedAllocation.id, newSubject, newBranchLabel, newSection);
     }
   };
 
@@ -89,13 +89,14 @@ export default function TeacherPage() {
 
       </main>
 
-      {/* ✅ initialBranchLabel is now passed correctly */}
+      {/* ✅ initialBranchLabel and initialSection are now passed correctly */}
       <EditSlotModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveSlot}
         initialSubject={selectedAllocation?.subject || ''}
         initialBranchLabel={selectedAllocation?.branchLabel || ''}
+        initialSection={selectedAllocation?.section || ''}
       />
     </div>
   );

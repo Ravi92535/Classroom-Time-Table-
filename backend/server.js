@@ -80,7 +80,7 @@ function ensureDB() {
         CREATE TABLE IF NOT EXISTS allocations (
           id TEXT PRIMARY KEY, day TEXT, slot_id TEXT, room_id TEXT,
           branch_id TEXT, subject TEXT, updated_by TEXT,
-          updated_at TIMESTAMPTZ, branch_label TEXT
+          updated_at TIMESTAMPTZ, branch_label TEXT, section TEXT
         );
         CREATE TABLE IF NOT EXISTS logs (
           id TEXT PRIMARY KEY, timestamp TIMESTAMPTZ,
@@ -91,6 +91,12 @@ function ensureDB() {
           timestamp TIMESTAMPTZ, is_read BOOLEAN DEFAULT false
         );
         CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB);
+      `);
+
+      // ─── Migrations ──────────────────────────────────────────────────────────
+      // Add 'section' column if it doesn't already exist (for existing tables)
+      await client.query(`
+        ALTER TABLE allocations ADD COLUMN IF NOT EXISTS section TEXT;
       `);
 
       const { rows } = await client.query('SELECT COUNT(*) FROM users');
@@ -175,6 +181,7 @@ async function readData() {
           updatedBy: a.updated_by, updatedAt: a.updated_at,
         };
         if (a.branch_label) obj.branchLabel = a.branch_label;
+        if (a.section) obj.section = a.section;
         return obj;
       }),
       logs: logsRes.rows.map(l => ({
@@ -402,8 +409,8 @@ app.put('/api/allocations', async (req, res) => {
     try {
       await client.query(
         `INSERT INTO allocations
-           (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           (id,day,slot_id,room_id,branch_id,subject,updated_by,updated_at,branch_label,section)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (id) DO UPDATE SET
            day          = EXCLUDED.day,
            slot_id      = EXCLUDED.slot_id,
@@ -412,9 +419,10 @@ app.put('/api/allocations', async (req, res) => {
            subject      = EXCLUDED.subject,
            updated_by   = EXCLUDED.updated_by,
            updated_at   = EXCLUDED.updated_at,
-           branch_label = EXCLUDED.branch_label`,
+           branch_label = EXCLUDED.branch_label,
+           section      = EXCLUDED.section`,
         [a.id, a.day, a.slotId, a.roomId, a.branchId, a.subject,
-        a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null]
+        a.updatedBy, a.updatedAt || new Date(), a.branchLabel || null, a.section || null]
       );
       res.json({ success: true });
     } finally { client.release(); }
