@@ -432,6 +432,88 @@ app.put('/api/allocations', async (req, res) => {
   }
 });
 
+// ALLOCATIONS — batch upsert (with auto room creation)
+app.post('/api/allocations/batch', async (req, res) => {
+  try {
+    await ensureDB();
+    const { items, updatedBy } = req.body;
+    if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      let created = 0;
+      let skipped = 0;
+      const skipReasons = [];
+
+      // Fetch current rooms to map name -> id (for auto-creation)
+      const { rows: existingRooms } = await client.query('SELECT id, name FROM rooms');
+      const roomMap = new Map();
+      existingRooms.forEach(r => roomMap.set(r.name.toLowerCase(), r.id));
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        if (!item.branchId || !item.slotId || !item.day) {
+          skipped++;
+          skipReasons.push(`Missing branch, slot, or day at index ${i}`);
+          continue;
+        }
+
+        // Resolve or create room
+        let roomId = null;
+        if (item.roomName) {
+            const rNameLower = item.roomName.toLowerCase();
+            if (roomMap.has(rNameLower)) {
+                roomId = roomMap.get(rNameLower);
+            } else {
+                roomId = 'r-' + generateId();
+                await client.query(
+                    'INSERT INTO rooms (id, name) VALUES ($1, $2)',
+                    [roomId, item.roomName]
+                );
+                roomMap.set(rNameLower, roomId);
+            }
+        }
+
+        const allocId = item.id || generateId();
+        await client.query(
+          `INSERT INTO allocations
+             (id, day, slot_id, room_id, branch_id, subject, updated_by, updated_at, branch_label, section)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (id) DO UPDATE SET
+             day          = EXCLUDED.day,
+             slot_id      = EXCLUDED.slot_id,
+             room_id      = EXCLUDED.room_id,
+             branch_id    = EXCLUDED.branch_id,
+             subject      = EXCLUDED.subject,
+             updated_by   = EXCLUDED.updated_by,
+             updated_at   = EXCLUDED.updated_at,
+             branch_label = EXCLUDED.branch_label,
+             section      = EXCLUDED.section`,
+          [
+            allocId, item.day, item.slotId, roomId, item.branchId, item.subject,
+            updatedBy || 'ai-import', new Date(), item.branchLabel || null, item.section || null
+          ]
+        );
+        created++;
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, created, skipped, skipReasons });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[POST /api/allocations/batch]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ALLOCATIONS — delete single
 app.delete('/api/allocations/:id', async (req, res) => {
   try {
@@ -559,5 +641,12 @@ app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
 });
 
-// ─── Export for Vercel ────────────────────────────────────────────────────────
+// ─── Export for Serverless & Local ──────────────────────────────────────────
+if (require.main === module) {
+  const PORT = process.env.PORT || 8000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running locally on port ${PORT}`);
+  });
+}
+
 module.exports = app;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import ScheduleGrid from '../components/ScheduleGrid.jsx';
 import LogViewer from '../components/LogViewer.jsx';
+import TimetableImporter from '../components/TimetableImporter.jsx';
 import { useStore } from '../lib/store.jsx';
 
 export default function AdminPage() {
@@ -261,6 +262,9 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* ── AI Timetable Import ── */}
+        <TimetableImporter />
 
         {/* ── Timetable ── */}
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">

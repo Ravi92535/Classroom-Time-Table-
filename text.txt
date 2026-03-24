@@ -7,3 +7,8 @@ cd /Users/ravi/Downloads/roomsystem/backend && node localServer.js
 frontend
 cd /Users/ravi/Desktop/roomsystem/frontend && npm run dev -- --port 5173
 
+
+
+python3 -m venv venv && source venv/bin/activate
+
+uvicorn main:app --reload --port 8000  
