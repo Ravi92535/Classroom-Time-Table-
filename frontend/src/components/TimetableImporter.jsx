@@ -10,7 +10,7 @@ const PYTHON_API =
 const genId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export default function TimetableImporter() {
-  const { branches, rooms, timeSlots, currentUser } = useStore();
+  const { branches, rooms, timeSlots, currentUser, allocations } = useStore();
 
   // ── form state ──────────────────────────────────────────────────────────────
   const [file, setFile]               = useState(null);
@@ -83,6 +83,12 @@ export default function TimetableImporter() {
     setAssigning(true);
     setAssignResult('');
 
+    // build existing conflict map from already-saved allocations
+    const existingAllocationKeys = new Set(
+      (allocations || []).map(a => `${a.day}|${a.slotId}|${a.roomId}`)
+    );
+    const batchAllocationKeys = new Set();
+
     try {
       const itemsToImport = [];
       let localSkipped = 0;
@@ -108,7 +114,32 @@ export default function TimetableImporter() {
           continue;
         }
 
-        // ── 3. build labels ───────────────────────────────────────────────────
+        // ── 3. resolve/get room conflict key ──────────────────────────────────
+        const roomName = (entry.room || '').trim();
+        let roomId = null;
+        if (roomName) {
+          const foundRoom = rooms.find(r => r.name.toLowerCase() === roomName.toLowerCase());
+          if (foundRoom) roomId = foundRoom.id;
+        }
+
+        const conflictKey = `${entry.day}|${slot.id}|${roomId || 'undefined'}`;
+
+        if (!roomName) {
+          localSkipReasons.push(`Missing room for ${entry.day} P${periodNum}`);
+          localSkipped++;
+          continue;
+        }
+
+        if (existingAllocationKeys.has(conflictKey) || batchAllocationKeys.has(conflictKey)) {
+          localSkipReasons.push(`Conflict: ${entry.day} P${periodNum} room ${roomName} already allocated`);
+          localSkipped++;
+          continue;
+        }
+
+        // add to batch-set to prevent duplicates inside this one operation
+        batchAllocationKeys.add(conflictKey);
+
+        // ── 4. build labels ───────────────────────────────────────────────────
         const subjectLabel = entry.subject || '';
         const profLabel    = entry.teacher || '';
         const sectionLabel = entry.section ? `${branchObj.name}-${entry.section}` : branchObj.name;
@@ -117,7 +148,7 @@ export default function TimetableImporter() {
           id:          genId(),
           day:         entry.day,
           slotId:      slot.id,
-          roomName:    entry.room, // Note: passing roomName, backend will resolve/create
+          roomName:    entry.room,
           branchId:    branchObj.id,
           subject:     subjectLabel,
           branchLabel: profLabel,
@@ -152,11 +183,16 @@ export default function TimetableImporter() {
       const totalSkipped = localSkipped + (json.skipped || 0);
       const allSkipReasons = [...localSkipReasons, ...(json.skipReasons || [])];
 
-      let msg = `✅ ${json.created} allocation${json.created !== 1 ? 's' : ''} created.`;
-      if (totalSkipped > 0) msg += ` ${totalSkipped} skipped.`;
+      let msg = '';
       if (allSkipReasons.length > 0) {
-        msg += '\n' + allSkipReasons.slice(0, 3).map(r => `  • ${r}`).join('\n');
-        if (allSkipReasons.length > 3) msg += `\n  …and ${allSkipReasons.length - 3} more`;
+        msg += `⚠️ ${allSkipReasons.length} conflict${allSkipReasons.length !== 1 ? 's' : ''} skipped:`;
+        msg += '\n' + allSkipReasons.map(r => `  • ${r}`).join('\n');
+      } else {
+        msg += `✅ ${json.created} allocation${json.created !== 1 ? 's' : ''} created.`;
+      }
+
+      if (allSkipReasons.length > 0 && json.created > 0) {
+        msg += `\n\n✅ ${json.created} allocation${json.created !== 1 ? 's' : ''} created successfully.`;
       }
       setAssignResult(msg);
     } catch (e) {
