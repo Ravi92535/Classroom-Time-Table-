@@ -4,7 +4,7 @@ import { useStore } from '../lib/store.jsx';
 const PYTHON_API =
   typeof window !== 'undefined' && window.location.hostname !== 'localhost'
     ? 'https://room-llm-service.onrender.com'
-    : 'http://localhost:8000';
+    : 'https://room-llm-service.onrender.com';
 
 // ── tiny local generateId (avoids importing from utils if path differs) ───────
 const genId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);

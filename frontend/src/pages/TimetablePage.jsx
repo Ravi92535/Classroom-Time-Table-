@@ -1,11 +1,30 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ScheduleGrid from '../components/ScheduleGrid.jsx';
 import Navbar from '../components/Navbar.jsx';
+import RoomSearch from '../components/RoomSearch.jsx';
+import EditSlotModal from '../components/EditSlotModal.jsx';
 import { useStore } from '../lib/store.jsx';
 
 export default function TimetablePage() {
-  const { rooms, settings, updateSettings, currentUser, isLoaded } = useStore();
+  const { rooms, settings, updateSettings, currentUser, isLoaded, updateAllocationSubject, branches } = useStore();
   const navigate = useNavigate();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState(null);
+
+  // Handle edit slot for teachers
+  const handleEditSlot = (id, subject, branchLabel, section) => {
+    setSelectedAllocation({ id, subject, branchLabel, section });
+    setIsModalOpen(true);
+  };
+
+  // Save slot changes
+  const handleSaveSlot = (newSubject, newBranchLabel, newSection) => {
+    if (selectedAllocation) {
+      updateAllocationSubject(selectedAllocation.id, newSubject, newBranchLabel, newSection);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -14,12 +33,15 @@ export default function TimetablePage() {
           <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
             NIT KKR Time-Table
           </h1>
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-blue-600 hover:underline font-medium"
-          >
-            Login →
-          </button>
+          <div className="flex items-center gap-3">
+            <RoomSearch />
+            <button
+              onClick={() => navigate('/')}
+              className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap"
+            >
+              Login →
+            </button>
+          </div>
         </div>
       )}
 
@@ -49,12 +71,12 @@ export default function TimetablePage() {
         ) : (
           <div className="space-y-6 sm:space-y-8">
             {rooms.map(room => (
-              <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div key={room.id} id={`room-${room.id}`} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-4 sm:px-6 py-3 sm:py-4 bg-indigo-50 border-b border-indigo-100 flex items-center space-x-2">
                   <span className="text-base sm:text-lg font-bold text-indigo-800">🏫 {room.name}</span>
                 </div>
                 <div className="p-2 sm:p-4">
-                  <ScheduleGrid roomId={room.id} />
+                  <ScheduleGrid roomId={room.id} onEditSlot={currentUser?.role === 'teacher' ? handleEditSlot : undefined} />
                 </div>
               </div>
             ))}
@@ -65,6 +87,15 @@ export default function TimetablePage() {
       <footer className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-xs py-6 border-t border-gray-100 mt-6">
         © {new Date().getFullYear()} Room Allocated ·
       </footer>
+
+      <EditSlotModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveSlot}
+        initialSubject={selectedAllocation?.subject || ''}
+        initialBranchLabel={selectedAllocation?.branchLabel || ''}
+        initialSection={selectedAllocation?.section || ''}
+      />
     </div>
   );
 }

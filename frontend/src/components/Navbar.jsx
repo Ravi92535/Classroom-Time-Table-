@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useStore } from '../lib/store.jsx';
 import NotificationCenter from './NotificationCenter.jsx';
+import RoomSearch from './RoomSearch.jsx';
 
 export default function Navbar() {
   const { currentUser, settings, updateSettings, logout } = useStore();
@@ -45,6 +46,8 @@ export default function Navbar() {
         {/* Right: desktop controls */}
         <div className="hidden md:flex items-center space-x-3">
           {/* <NotificationCenter /> */}
+
+          <RoomSearch />
 
           <button
             onClick={toggleOrientation}

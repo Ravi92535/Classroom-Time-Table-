@@ -384,6 +384,11 @@ export function StoreProvider({ children }) {
     const branch = stateRef.current.branches.find(b => b.id === branchId);
     if (!branch) return;
 
+    const slot = stateRef.current.timeSlots.find(s => s.id === slotId);
+    const room = stateRef.current.rooms.find(r => r.id === roomId);
+    const slotLabel = slot ? `P${slot.period}` : slotId;
+    const roomLabel = room ? room.name : roomId;
+
     const existing = stateRef.current.allocations.find(
       a => a.day === day && a.slotId === slotId && a.roomId === roomId
     );
@@ -395,7 +400,7 @@ export function StoreProvider({ children }) {
       updatedBy: currentUser.id,
       updatedAt: new Date().toISOString(),
     };
-    const newLog = buildLog(`Allocated ${branch.name} → ${day}, slot ${slotId}, room ${roomId}`);
+    const newLog = buildLog(`Allocated ${branch.name} → ${day}, slot ${slotLabel}, room ${roomLabel}`);
 
     setAllocations(prev => {
       const filtered = prev.filter(a => !(a.day === day && a.slotId === slotId && a.roomId === roomId));
@@ -413,7 +418,19 @@ export function StoreProvider({ children }) {
 
   const removeAllocation = (allocationId) => {
     if (currentUser?.role !== 'admin') return;
-    const newLog = buildLog(`Removed allocation ${allocationId}`);
+    const allocation = stateRef.current.allocations.find(a => a.id === allocationId);
+    let newLog;
+    if (allocation) {
+      const slot = stateRef.current.timeSlots.find(s => s.id === allocation.slotId);
+      const room = stateRef.current.rooms.find(r => r.id === allocation.roomId);
+      const branch = stateRef.current.branches.find(b => b.id === allocation.branchId);
+      const slotLabel = slot ? `P${slot.period}` : allocation.slotId;
+      const roomLabel = room ? room.name : allocation.roomId;
+      newLog = buildLog(`Removed ${branch?.name || allocation.branchId} → ${allocation.day}, slot ${slotLabel}, room ${roomLabel}`);
+    } else {
+      newLog = buildLog(`Removed allocation ${allocationId}`);
+    }
+
     setAllocations(prev => prev.filter(a => a.id !== allocationId));
     setLogs(prev => [newLog, ...prev]);
     addToQueue(`alloc:${allocationId}:del`, 'DELETE', `/api/allocations/${allocationId}`);

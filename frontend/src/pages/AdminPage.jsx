@@ -213,6 +213,7 @@ export default function AdminPage() {
                 <div key={t.id} className="flex justify-between items-center text-sm bg-gray-50 px-2 py-1.5 rounded-lg">
                   <div className="flex flex-col min-w-0">
                     <span className="font-medium text-gray-800 truncate">{t.name}</span>
+                    <span className="text-[10px] text-gray-500 truncate">{t.email}</span>
                     <span className="text-[10px] text-gray-500">{branches.find(b => b.id === t.branchId)?.name || '—'}</span>
                   </div>
                   <button onClick={() => removeTeacher(t.id)} className="text-red-500 hover:text-red-700 text-lg leading-none ml-2 shrink-0 p-1">×</button>
