@@ -26,6 +26,10 @@ export default function TimetableImporter() {
   const [assigning, setAssigning]     = useState(false);
   const [assignResult, setAssignResult] = useState('');
 
+  // row edit/delete UX
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingRow, setEditingRow] = useState({ subject: '', teacher: '', room: '', section: '' });
+
   // live rooms ref (needed inside handleAssign without stale closure)
   const liveRooms = rooms;
 
@@ -161,6 +165,64 @@ export default function TimetableImporter() {
     } finally {
       setAssigning(false);
     }
+  };
+
+  const handleRowDelete = (index) => {
+    setParsedData(prev => {
+      if (!prev) return prev;
+      const copy = [...prev];
+      copy.splice(index, 1);
+      return copy;
+    });
+
+    if (editingIndex === index) {
+      setEditingIndex(null);
+      setEditingRow({ subject: '', teacher: '', room: '', section: '' });
+    }
+  };
+
+  const handleRowEdit = (index) => {
+    if (!parsedData?.[index]) return;
+
+    const row = parsedData[index];
+    setEditingIndex(index);
+    setEditingRow({
+      subject: row.subject || '',
+      teacher: row.teacher || '',
+      room: row.room || '',
+      section: row.section || '',
+    });
+    setError('');
+  };
+
+  const handleRowEditCancel = () => {
+    setEditingIndex(null);
+    setEditingRow({ subject: '', teacher: '', room: '', section: '' });
+    setError('');
+  };
+
+  const handleRowEditSave = () => {
+    if (!editingRow.subject.trim() || !editingRow.room.trim()) {
+      setError('Subject and room must not be empty when editing.');
+      return;
+    }
+
+    setParsedData(prev => {
+      if (!prev || editingIndex === null) return prev;
+      const copy = [...prev];
+      copy[editingIndex] = {
+        ...copy[editingIndex],
+        subject: editingRow.subject.trim(),
+        teacher: editingRow.teacher.trim(),
+        room: editingRow.room.trim(),
+        section: editingRow.section.trim(),
+      };
+      return copy;
+    });
+
+    setEditingIndex(null);
+    setEditingRow({ subject: '', teacher: '', room: '', section: '' });
+    setError('');
   };
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -308,7 +370,7 @@ export default function TimetableImporter() {
             <table className="min-w-full text-xs">
               <thead className="bg-gray-50 text-gray-600 uppercase tracking-wide">
                 <tr>
-                  {['Day', 'Period', 'Subject', 'Teacher', 'Room', 'Section'].map(h => (
+                  {['Day', 'Period', 'Subject', 'Teacher', 'Room', 'Section', 'Actions'].map(h => (
                     <th key={h} className="px-3 py-2.5 text-left font-semibold border-b border-gray-200">
                       {h}
                     </th>
@@ -316,20 +378,85 @@ export default function TimetableImporter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {parsedData.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{row.day}</td>
-                    <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{row.period}</td>
-                    <td className="px-3 py-2 text-gray-900 font-semibold">{row.subject || '—'}</td>
-                    <td className="px-3 py-2 text-gray-600">{row.teacher || '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="inline-block bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded font-mono text-[11px]">
-                        {row.room || '—'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-gray-500">{row.section || '—'}</td>
-                  </tr>
-                ))}
+                {parsedData.map((row, i) => {
+                  const isEditing = editingIndex === i;
+                  return (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{row.day}</td>
+                      <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{row.period}</td>
+
+                      {isEditing ? (
+                        <>
+                          <td className="px-3 py-2"> 
+                            <input
+                              className="w-full text-xs border rounded px-2 py-1"
+                              value={editingRow.subject}
+                              onChange={e => setEditingRow(prev => ({ ...prev, subject: e.target.value }))}
+                              placeholder="Subject"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              className="w-full text-xs border rounded px-2 py-1"
+                              value={editingRow.teacher}
+                              onChange={e => setEditingRow(prev => ({ ...prev, teacher: e.target.value }))}
+                              placeholder="Teacher"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              className="w-full text-xs border rounded px-2 py-1"
+                              value={editingRow.room}
+                              onChange={e => setEditingRow(prev => ({ ...prev, room: e.target.value }))}
+                              placeholder="Room"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              className="w-full text-xs border rounded px-2 py-1"
+                              value={editingRow.section}
+                              onChange={e => setEditingRow(prev => ({ ...prev, section: e.target.value }))}
+                              placeholder="Section"
+                            />
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap flex items-center gap-1">
+                            <button
+                              onClick={handleRowEditSave}
+                              className="px-2 py-1 bg-green-500 text-white rounded text-xs"
+                            >Save</button>
+                            <button
+                              onClick={handleRowEditCancel}
+                              className="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs"
+                            >Cancel</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2 text-gray-900 font-semibold">{row.subject || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.teacher || '—'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <span className="inline-block bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded font-mono text-[11px]">
+                              {row.room || '—'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-500">{row.section || '—'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap flex items-center gap-1">
+                            <button
+                              onClick={() => handleRowDelete(i)}
+                              className="px-2 py-1 bg-red-500 text-white rounded-full text-xs"
+                              title="Delete row"
+                            >✕</button>
+                            <button
+                              onClick={() => handleRowEdit(i)}
+                              className="px-2 py-1 bg-blue-500 text-white rounded-full text-xs"
+                              title="Edit row"
+                            >✎</button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

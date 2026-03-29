@@ -477,6 +477,22 @@ app.post('/api/allocations/batch', async (req, res) => {
             }
         }
 
+        // conflict check: same day, same timeslot, same room is not allowed
+        if (roomId) {
+          const conflictCheck = await client.query(
+            'SELECT id FROM allocations WHERE day = $1 AND slot_id = $2 AND room_id = $3',
+            [item.day, item.slotId, roomId]
+          );
+
+          if (conflictCheck.rows.length > 0) {
+            skipped++;
+            skipReasons.push(
+              `Conflict: ${item.day} / slot ${item.slotId} / room ${item.roomName || 'unknown'} already allocated`
+            );
+            continue;
+          }
+        }
+
         const allocId = item.id || generateId();
         await client.query(
           `INSERT INTO allocations
